@@ -153,7 +153,7 @@ def get_p_from_kdes(df, solarPhase, naoPhase, ensoPhase, its=1000, epoch=0):
 
 def getWindDic(hb_to_direction = False):
     """
-    Return a dictionary of wind data, either for HB by direction,
+    Return a dictionary of weather system origin data, either for HB direction,
     or direction by HB code.
     """
     if hb_to_direction:
@@ -257,7 +257,7 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase):
                        bottom='off',left='off', right='off')
     big_ax.set_frame_on(False)
     big_ax.grid(False)
-    big_ax.set_xlabel(r"$\delta$ wind frequency (days/month)", fontsize=fsize)
+    big_ax.set_xlabel(r"$\delta$ weather system origin (days/month)", fontsize=fsize)
     big_ax.set_ylabel(r"Wind direction", fontsize=fsize)
     axs[0, 0].set_ylim([-0.1,7.1])
     axs[0, 0].set_xlim([-10,10])
@@ -379,8 +379,8 @@ def figure_composite_perEpoch(df, conf_df, solarPhase, ensoPhase, epoch=0):
             ax.fill_between(ticks, conf_df[0.5], conf_df[99.5],color='gray',linewidth=0.5,alpha=0.3)
         ax1.set_xticklabels(cfilled, fontsize=11) # place labels on x-axis
         ax1.set_title(r"Epoch "+str(epoch), fontsize=11)
-        ax1.set_ylabel(r"$\delta$ wind frequency (days/month)", fontsize=11)
-        ax2.set_ylabel(r"$\delta$ wind frequency (days/month)", fontsize=11)
+        ax1.set_ylabel(r"$\delta$ weather system origin (days/month)", fontsize=11)
+        ax2.set_ylabel(r"$\delta$ weather system origin (days/month)", fontsize=11)
         ax2.set_xlabel(r"Direction", fontsize=11)
         fig_results.savefig('Figs/epoch'+str(epoch)+'_composite.pdf', dpi=300)
         fig_results.show()
@@ -390,7 +390,7 @@ def figure_composite_perEpoch(df, conf_df, solarPhase, ensoPhase, epoch=0):
 def fig_distribution(data):
     """
     KDE and CDF of wind frequency for main compass directions
-    Input: Pandas dataframe of monthly wind freq
+    Input: Pandas dataframe of monthly weather system origin frequency
     Output: figure
     """
     fsize=11 # <-- Change font-size here
@@ -434,6 +434,44 @@ def figure_forcing_TS(data):
     ax3.set_ylabel("Sunspot number",size=fsize)
     ax3.set_xlabel("Year",size=fsize)
     fig_TS.savefig('Figs/Forcing_TS.pdf', dpi=300)
+    fig_TS.show()
+    return
+
+
+def figure_seasons(data):
+    """
+    Create a violin plot of the wearth system origin during the 
+    DJF, FMA, JJA, SON months. This replaces an polar version of this
+    figure which remains in the figure_SeasonalClimo() function.
+    Input: data, must be a PD Dataframe object with a pd.datetime index
+    Output: None. Only saves a plot to pdf, and also displays to screen.
+    """
+    fsize = 11 # <-- specify font size
+    fig_TS,(ax1,ax2,ax3,ax4)=plt.subplots(4,1, sharey=True,sharex=True)
+    axobs =[ax1,ax2,ax3,ax4]
+    fig_TS.set_size_inches(8,6)
+    big_ax = fig_TS.add_subplot(111)
+    big_ax.set_axis_bgcolor('none')
+    big_ax.tick_params(labelcolor='none', top='off', 
+                       bottom='off',left='off', right='off')
+    big_ax.set_frame_on(False)
+    big_ax.set_ylabel(r"Frequency (days/month)", labelpad=20, fontsize=fsize)
+    big_ax.set_xlabel(r"Season", fontsize=fsize)
+    big_ax.set_title("Weather system origin by season", fontsize=fsize)
+    big_ax.grid(False)
+
+    directions = ["N","E","S","W"]
+    seasons = {"DJF":[12,1,2],"MAM":[3,4,5],"JJA":[6,7,8],"SON":[9,10,11]}
+    for j, direction in enumerate(directions):
+        szn_frame = pd.DataFrame()
+        for season in ["DJF","MAM","JJA","SON"]:
+            mnmask = [indx in seasons[season] for indx in data.index.month]
+            szn_frame[season] = data[direction][mnmask].values
+        clr=sns.color_palette()[j]
+        sns.violinplot(szn_frame, cut=0, linewidth=1.0, inner="quartiles",
+                       color=clr,ax=axobs[j])
+        axobs[j].set_ylabel(direction)
+    fig_TS.savefig('Figs/Seasonal_violin.pdf', dpi=300)
     fig_TS.show()
     return
 
@@ -487,7 +525,9 @@ def figure_montecarlo_kde(df,its=1000):
     fig_kde = plt.figure()
     fig_kde.set_size_inches(4,4)
     ax1 = fig_kde.add_subplot(111)
-    keys=["N","NE","E","SE","S","SW","W","NW"]
+    # nb. order of keys are intentional so colors
+    # of cardinal directions are consistent.
+    keys=["N","E","S","W","NE","SE","SW","NW"]
     for n,key in enumerate(keys):
         status(current=n, end_val=len(keys)-1, key=key)
         #print("\rCalculating {0}...".format(key),end="")
@@ -495,7 +535,7 @@ def figure_montecarlo_kde(df,its=1000):
     print("\rFinished MC calculation")
     ax1.set_title("Monte Carlo distributions")
     ax1.set_ylabel("KDE")
-    ax1.set_xlabel(r"$\delta$ wind frequency (days/month)")
+    ax1.set_xlabel(r"$\delta$ weather system origin (days/month)")
     fig_kde.savefig('Figs/MC_kde.pdf', dpi=300)
     fig_kde.show()
     return
@@ -518,7 +558,8 @@ def figure_MonthlyTS(df):
     big_ax.set_frame_on(False)
     big_ax.set_ylabel(r"Frequency (days/month)", fontsize=fsize)
     big_ax.set_xlabel(r"Year", fontsize=fsize)
-    big_ax.set_title("Monthly Wind direction", fontsize=fsize)
+    big_ax.set_title("Monthly weather system origin", fontsize=fsize)
+    big_ax.grid(False)
     #props = ['b.','g.','r.','m.'] # <- some plot color and marker
     for n, wind in enumerate(["N","E","S","W"]):
         axobs[n].plot(df.index, df[wind],".",
@@ -568,7 +609,7 @@ def figure_SeasonalClimo(data):
     leg1.get_frame().set_alpha(1.0)
     ax1.set_xticklabels(directions, fontsize=fsize)
     ax1.set_yticklabels(ylabs, fontsize=fsize)
-    ax1.set_xlabel("Wind direction (days/month)", fontsize=fsize)
+    ax1.set_xlabel("Weather system origin (days/month)", fontsize=fsize)
     ax1.grid(True)
     fig_pl.subplots_adjust(left=0.2, bottom=0.13, right=0.95, 
                            top=0.92, wspace=0, hspace=0)
