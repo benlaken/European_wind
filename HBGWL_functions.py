@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import datetime as dt
 import random
 import sys
 from scipy import stats
@@ -45,6 +46,33 @@ def extractConfsByDirection(data):
     return pd.DataFrame(data=tmp_hold,index=keys,columns=percentiles)
 
 
+def extract_DJF_errors(data, comp_keys, comp_means):
+    """
+    Extract a list of error values for the DJF composite. 
+    Error needs to be calculated as explained in the notebook.
+    It also re-formats the composite means, calculated earlier by
+    list comprehension, into a simple list in the correct order.
+    Ready for plotting an errorbar-type figure.
+    """
+    keys=["N","NE","E","SE","S","SW","W","NW"]
+    confs ={}
+    meanList =[]
+    errorList =[]
+    meanList =[]
+    for n, key in enumerate(keys):
+        # extract the SEM values for each direction
+        tmp = data[key+"_SEM"][comp_keys]
+        running = 0
+        # square them and sum them
+        for ele in tmp:  
+            running += (ele * ele)
+        # square root the sum, and divide by the no. of obs
+        confs[key] = np.sqrt(running)/11. #np.std(tmp)/np.sqrt(11)#
+        errorList.append(confs[key])
+        meanList.append(comp_means[key])
+    return meanList, errorList
+
+
 def find_non_overlapping_sample(datelist, prd = 365):
     """
     After feeding the function a filtered subset of dates,
@@ -72,6 +100,28 @@ def find_non_overlapping_sample(datelist, prd = 365):
     return datelist
 
 
+def find_non_overlapping_DJF_sample(yearlist):
+    """
+    After feeding the function a filtered index of year integers,
+    e.g. dataframe.sort("column",ascending=True).head(100).index
+    this function will find the a non-overlapping dates within a
+    5 year period. 
+    Input: a list of integers (years) ordered by magnitude.
+    Output: A list of integers (years) non-overlapping within a,
+    absoloute period of 5 years.
+    
+    """
+    start_size = len(yearlist)
+    idx = 0
+    while(idx < len(yearlist)):
+        timeDiff = [abs((yearlist[idx] - nn)) for nn in yearlist]
+        timeDiff = np.array(timeDiff)
+        mask = ((timeDiff == 0) | (timeDiff > 5))
+        yearlist = yearlist[mask]
+        idx += 1
+    return yearlist
+
+
 def gen_composite(data, keyDates, months = range(-12,13)):
     """
     Create composites.
@@ -97,17 +147,24 @@ def gen_composite(data, keyDates, months = range(-12,13)):
     return composite
 
 
-def gen_keydates(df,key):
+def gen_keydates(df, key, djf_data=False):
     """
     Identifies the largest/smallest values associated with a given key. 
     Then calls a function to filter out overlapping dates within 365 days.
     Finally, it selects the top 11, sorts them to ascending order, 
     and returns them as a dictionary with keys of 'max' and 'min'.
     """
-    tmpmax = find_non_overlapping_sample(df.sort(key,ascending=False
-                                                      ).head(150).index)
-    tmpmin = find_non_overlapping_sample(df.sort(key,ascending=True
-                                                      ).head(150).index)
+    if djf_data:
+        # If this is the DJF data then use a slightly modified function.
+        tmpmax = find_non_overlapping_DJF_sample(df.sort(key,ascending=False
+                                                          ).head(150).index)
+        tmpmin = find_non_overlapping_DJF_sample(df.sort(key,ascending=True
+                                                          ).head(150).index)
+    else:
+        tmpmax = find_non_overlapping_sample(df.sort(key,ascending=False
+                                                          ).head(150).index)
+        tmpmin = find_non_overlapping_sample(df.sort(key,ascending=True
+                                                          ).head(150).index)
     compPhase ={}
     compPhase['max'] = tmpmax[0:11].order()
     compPhase['min'] = tmpmin[0:11].order()
@@ -117,10 +174,55 @@ def gen_keydates(df,key):
     return compPhase
 
 
-def get_p_from_kdes(df, solarPhase, naoPhase, ensoPhase, its=1000, epoch=0):
+def get_DJF_means(data, var, chatty=False):
+    """
+    From a monthly resolution dataframe object, extract the mean DJF winter values
+    for a specified direction variable.
+    """
+    year_index = []
+    djf_values = []
+    loop_year = min(data.index.year)
+    end_year = max(data.index.year)
+    if chatty:
+        print("Extracting DFJ values between {0} and {1}".format(start_year, end_year))
+    while loop_year < end_year:
+        start = dt.datetime(loop_year, 12, 31)
+        end = dt.datetime(loop_year+1, 2, 28)
+        if chatty:
+            print("Year: {0}  DJF mean: {1:3.2f}".format(loop_year, 
+                  np.mean(data[var][start:end])))
+        year_index.append(loop_year)
+        djf_values.append([np.mean(data[var][start:end]),
+                          np.std(data[var][start:end])/np.sqrt(2)])
+        loop_year += 1
+    output_df = pd.DataFrame(data=djf_values, 
+                             index=year_index, columns=[var,var+"_SEM"])
+    return output_df
+
+
+def get_DJF_frame(data):
+    """
+    Return a dataframe with one DJF mean (and SEM) per year
+    for all data.
+    Input: Pandas Dataframe (monthly resolution)
+    Output: Pandas Dataframe annual DJF mean 
+    """
+    container={}
+    for variable in data:
+        container[variable]=get_DJF_means(data=data, var=variable)
+        
+    djf_frame = pd.concat([container["N"],container["NE"],container["E"],
+                 container["SE"],container["S"],container["SW"],
+                 container["W"],container["NW"],container["Wolf"],
+                 container["NAO"],container["MEI"]],axis=1)
+    return djf_frame
+
+
+def get_p_from_kdes(df, solarPhase, naoPhase, ensoPhase, its=1000, epoch=0, djf=False):
     """
     Use kernel density estimates to Monte Carlo outputs to identify p values for the
     mean and mean uncertainty range values. Print the output to the screen.
+    It behaves diffrently for monthly means and DJF means due to slight data format diffs.
     """
     keys=["N","NE","E","SE","S","SW","W","NW"]
     date_groups = [solarPhase["max"],solarPhase["min"],
@@ -134,20 +236,32 @@ def get_p_from_kdes(df, solarPhase, naoPhase, ensoPhase, its=1000, epoch=0):
     for n,key in enumerate(keys):
         mc[key] = monteCarlo(df=df, key=key, its=its, give_array=True)
         status(current=n,end_val=len(keys)-1,key=key)
-        
     print("\n\nDisplaying mean (uncertainty) and p-value (with range covered by uncertainty):\n")
-    for i, date_group in enumerate(date_groups):
-        comp = {key : gen_composite(data=df[key],keyDates=date_group,
-                                        months=[epoch]) for key in keys}
-        means, sem = extractCompositeStatsAllDir(comp, epoch=epoch)
-        print("{0}, epoch {1}, δ wind".format(comp_groups[i], epoch))
-        for n, key in enumerate(keys):
-            kde = stats.gaussian_kde(mc[key])
-            mval = means[n][0]
-            err = sem[n][0]
-            print("{0} {1:3.2f}(±{2:3.2f}) p:{3:1.2} ({4:1.2}--{5:1.2})".format(
-                    key,mval, err, kde(mval)[0],kde(mval-err)[0],kde(mval+err)[0]))
-        print(end='\n')
+    if not djf:
+        for i, date_group in enumerate(date_groups):
+            comp = {key : gen_composite(data=df[key],keyDates=date_group,
+                                            months=[epoch]) for key in keys}
+            means, sem = extractCompositeStatsAllDir(comp, epoch=epoch)
+            print("{0}, epoch {1}, δ wind".format(comp_groups[i], epoch))
+            for n, key in enumerate(keys):
+                kde = stats.gaussian_kde(mc[key])
+                mval = means[n][0]
+                err = sem[n][0]
+                print("{0} {1:3.2f}(±{2:3.2f}) p:{3:1.2} ({4:1.2}--{5:1.2})".format(
+                        key,mval, err, kde(mval)[0],kde(mval-err)[0],kde(mval+err)[0]))
+            print(end='\n')
+    else:
+        for i, date_group in enumerate(date_groups):
+            comp = {key : np.mean(df[key][date_group]) for key in keys}
+            means, sem = extract_DJF_errors(data=df, comp_means=comp, comp_keys=date_group)
+            print("{0}, DJF δ weather system origin".format(comp_groups[i]))
+            for n, key in enumerate(keys):
+                kde = stats.gaussian_kde(mc[key])
+                mval = means[n]
+                err = sem[n]
+                print("{0} {1:3.2f}(±{2:3.2f}) p:{3:1.2} ({4:1.2}--{5:1.2})".format(
+                        key,mval, err, kde(mval)[0],kde(mval-err)[0],kde(mval+err)[0]))
+            print(end='\n')        
     return
 
 
@@ -412,7 +526,90 @@ def fig_distribution(data):
     return
 
 
-def figure_forcing_TS(data):
+def figure_DJFcomposite(df, conf_df, naoPhase, ensoPhase, solarPhase):
+    """
+    Plot of the composite means at specific epochs with Conf Intervals.
+    """
+    props = dict(boxstyle='round', facecolor='w', alpha=1.0)
+    majorLocator   = plt.MultipleLocator(1)
+    ticks = np.arange(0, 8, 1)
+    fsize=11
+    cfilled = ['','N','NE','E','SE','S','SW','W','NW']
+    
+    fig_results = plt.figure()
+    ax1 = fig_results.add_subplot(111)
+
+    fig_results.set_size_inches(6,8)
+
+
+    keys=["N","NE","E","SE","S","SW","W","NW"]
+
+    comp_smax = {key : np.mean(df[key][solarPhase["max"]]) for key in keys}
+    smax_means, smax_sem = extract_DJF_errors(data=df, comp_means=comp_smax, 
+                                               comp_keys=solarPhase["max"])
+    comp_smin = {key : np.mean(df[key][solarPhase["min"]]) for key in keys}
+    smin_means, smin_sem = extract_DJF_errors(data=df, comp_means=comp_smin, 
+                                              comp_keys=solarPhase["min"])
+
+    comp_elnino = {key : np.mean(df[key][ensoPhase["max"]]) for key in keys}
+    elnino_means, elnino_sem = extract_DJF_errors(data=df, comp_means=comp_elnino, 
+                                              comp_keys=ensoPhase["max"])
+    comp_lanina = {key : np.mean(df[key][ensoPhase["min"]]) for key in keys}
+    lanina_means, lanina_sem = extract_DJF_errors(data=df, comp_means=comp_lanina, 
+                                              comp_keys=ensoPhase["min"])
+
+    comp_posnao = {key : np.mean(df[key][naoPhase["max"]]) for key in keys}
+    posnao_means, posnao_sem = extract_DJF_errors(data=df, comp_means=comp_posnao, 
+                                              comp_keys=naoPhase["max"])
+    comp_negnao = {key : np.mean(df[key][naoPhase["min"]]) for key in keys}
+    negnao_means, negnao_sem = extract_DJF_errors(data=df, comp_means=comp_negnao, 
+                                              comp_keys=naoPhase["min"])
+     
+    conf_25 =[]
+    conf_975=[]
+    conf_05=[]
+    conf_995=[]
+    for key in keys:
+        #print(key)
+        conf_25.append(conf_df[key][2.5])
+        conf_975.append(conf_df[key][97.5])
+        conf_05.append(conf_df[key][0.5])
+        conf_995.append(conf_df[key][99.5])        
+    
+    ax1.errorbar(posnao_means,ticks, xerr=posnao_sem, fmt='o-',
+                color=sns.color_palette()[1], ms=5.0, linewidth=1.0)
+    ax1.errorbar(negnao_means,ticks, xerr=negnao_sem, fmt='v-',
+                color=sns.color_palette()[5], ms=5.0, linewidth=1.0)
+    ax1.errorbar(elnino_means,ticks, xerr=elnino_sem, fmt='^-',
+                color=sns.color_palette()[4],ms=5.0, linewidth=1.0)
+    ax1.errorbar(lanina_means,ticks, xerr=lanina_sem, fmt='p-',
+            color=sns.color_palette()[3], ms=5.0, linewidth=1.0)
+    ax1.errorbar(smax_means,ticks, xerr=smax_sem, fmt='s-',
+                    color=sns.color_palette()[2], ms=5.0, linewidth=1.0)             
+    ax1.errorbar(smin_means,ticks, xerr=smin_sem, fmt='D-',
+            color=sns.color_palette()[0], ms=5.0, linewidth=1.0)
+    
+    ax1.fill_betweenx(ticks, conf_25, conf_975,
+                     color='gray',linewidth=0.5,alpha=0.3)
+    ax1.fill_betweenx(ticks, conf_05, conf_995,
+                     color='gray',linewidth=0.5,alpha=0.3)
+    ax1.set_title(r"DJF response", fontsize=fsize)
+
+    ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","S. Max.","S. Min."],
+               loc=6, prop={'size':12}, numpoints=1,markerscale=1.0,
+               fancybox=True,frameon=True)
+
+    ax1.set_yticklabels(cfilled, fontsize=fsize) # place labels on x-axis
+    ax1.set_ylabel("Direction")
+    ax1.set_xlabel(r"Mean $\delta$ weather system origin during DJF (days/month)")
+    ax1.set_xlim(-6,6)
+    ax1.set_ylim(-0.1,7.1)
+    fig_results.savefig('Figs/DFJ_composite.pdf', dpi=300)
+    fig_results.show()
+    return
+
+
+def figure_forcing_TS(data, fnm="Forcing_TS.pdf"):
     """
     Show NAO index, MEI and Wolf sunspot number as monthly
     time series data.
@@ -433,7 +630,7 @@ def figure_forcing_TS(data):
     ax2.set_ylabel("ENSO index",size=fsize)
     ax3.set_ylabel("Sunspot number",size=fsize)
     ax3.set_xlabel("Year",size=fsize)
-    fig_TS.savefig('Figs/Forcing_TS.pdf', dpi=300)
+    fig_TS.savefig("Figs/"+fnm, dpi=300)
     fig_TS.show()
     return
 
@@ -538,6 +735,36 @@ def figure_montecarlo_kde(df,its=1000):
     ax1.set_xlabel(r"$\delta$ weather system origin (days/month)")
     fig_kde.savefig('Figs/MC_kde.pdf', dpi=300)
     fig_kde.show()
+    return
+
+def figure_djf_ts(df):
+    """
+    Create a multi-panel simple time-series figure for DJF data.
+    Input: Pandas Dataframe of Monthly data with directions as columns.
+    Output: Time series figure
+    """
+    fsize = 11 # <-- specify font size
+    fig_TS,(ax1,ax2,ax3,ax4)=plt.subplots(4,1,sharey=True,sharex=True)
+    axobs =[ax1,ax2,ax3,ax4]
+    fig_TS.set_size_inches(8,6)
+    big_ax = fig_TS.add_subplot(111)
+    big_ax.set_axis_bgcolor('none')
+    big_ax.tick_params(labelcolor='none', top='off', 
+                       bottom='off',left='off', right='off')
+    big_ax.set_frame_on(False)
+    big_ax.set_ylabel(r"Mean $\delta$ frequency (days/month)", fontsize=fsize)
+    big_ax.set_xlabel(r"Year", fontsize=fsize)
+    big_ax.set_title("Winter $\delta$ weather system origin", fontsize=fsize)
+    big_ax.grid(False)
+    #props = ['b.','g.','r.','m.'] # <- some plot color and marker
+    for n, wind in enumerate(["N","E","S","W"]):
+        axobs[n].plot(df.index, df[wind],".",
+                      color=sns.color_palette()[n],ms=3.0)
+        leg1=axobs[n].legend([wind], loc=2,prop={'size':fsize},
+                                   numpoints=1,markerscale=2.0)
+        leg1.get_frame().set_alpha(0.9)
+    fig_TS.savefig('Figs/DJF_freq.pdf', dpi=300)
+    fig_TS.show()
     return
 
 
