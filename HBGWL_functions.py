@@ -632,7 +632,7 @@ def figure_forcing_TS(data, fnm="Forcing_TS.pdf"):
     ax2.set_ylabel("ENSO index",size=fsize)
     ax3.set_ylabel("Sunspot number",size=fsize)
     ax4.set_ylabel("AOD",size=fsize)
-    ax3.set_xlabel("Year",size=fsize)
+    ax4.set_xlabel("Year",size=fsize)
     fig_TS.savefig("Figs/"+fnm, dpi=300)
     fig_TS.show()
     return
