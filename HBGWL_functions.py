@@ -617,8 +617,8 @@ def figure_forcing_TS(data, fnm="Forcing_TS.pdf"):
     Output: Plot
     """
     fsize = 11 # <-- Font size kwarg
-    fig_TS,(ax1, ax2, ax3)=plt.subplots(3,1,sharex=True)
-    fig_TS.set_size_inches(9,6)
+    fig_TS,(ax1, ax2, ax3, ax4)=plt.subplots(4,1,sharex=True)
+    fig_TS.set_size_inches(12,6)
     
     ax1.plot(data.index,data.NAO,
              lw=1.,color=sns.color_palette()[1])    
@@ -626,9 +626,12 @@ def figure_forcing_TS(data, fnm="Forcing_TS.pdf"):
              lw=1.,color=sns.color_palette()[0])
     ax3.plot(data.index,data.Wolf,
              lw=1.,color=sns.color_palette()[2])
+    ax4.plot(data.index,data.NHemi_AOD,
+             lw=1.,color=sns.color_palette()[3])
     ax1.set_ylabel("NAO index",size=fsize)    
     ax2.set_ylabel("ENSO index",size=fsize)
     ax3.set_ylabel("Sunspot number",size=fsize)
+    ax4.set_ylabel("AOD",size=fsize)
     ax3.set_xlabel("Year",size=fsize)
     fig_TS.savefig("Figs/"+fnm, dpi=300)
     fig_TS.show()
