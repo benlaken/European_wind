@@ -73,7 +73,7 @@ def extract_DJF_errors(data, comp_keys, comp_means):
     return meanList, errorList
 
 
-def find_non_overlapping_sample(datelist, prd = 365):
+def find_non_overlapping_sample(datelist, prd):
     """
     After feeding the function a filtered subset of dates,
     e.g. dataframe.sort("column",ascending=True).head(100).index
@@ -89,38 +89,38 @@ def find_non_overlapping_sample(datelist, prd = 365):
     start_size = len(datelist)
     idx = 0
     while(idx < len(datelist)):
-        #print(idx,len(datelist))
         timeDiff = [abs((datelist[idx] - nn).days) for nn in datelist]
         timeDiff = np.array(timeDiff)
-        mask = ((timeDiff == 0) | (timeDiff > 365))
+        mask = ((timeDiff == 0) | (timeDiff > prd))
         datelist = datelist[mask]
         idx += 1
     print("Reduced {0} to {1} non-overlapping dates in ±{2} dy prd".format(
-            start_size,len(datelist),prd,idx))
+            start_size,len(datelist), prd, idx))
     return datelist
 
 
-def find_non_overlapping_DJF_sample(yearlist):
+def find_non_overlapping_DJF_sample(yearlist, key):
     """
     After feeding the function a filtered index of year integers,
     e.g. dataframe.sort("column",ascending=True).head(100).index
     this function will find the a non-overlapping dates within a
-    5 year period. 
+    ±5 year period for solar data, or a ±1 year period for other. 
     Input: a list of integers (years) ordered by magnitude.
-    Output: A list of integers (years) non-overlapping within a,
-    absoloute period of 5 years.
-    
+    Output: A list of integers (years) non-overlapping within a
+    given period.
     """
     start_size = len(yearlist)
     idx = 0
     while(idx < len(yearlist)):
         timeDiff = [abs((yearlist[idx] - nn)) for nn in yearlist]
         timeDiff = np.array(timeDiff)
-        mask = ((timeDiff == 0) | (timeDiff > 5))
+        if key == "Wolf": # If its solar data, dont reoccur within ±5 years
+            mask = ((timeDiff == 0) | (timeDiff > 5)) 
+        else: # othewise, the non-reocurrence period is ±1 yr
+            mask = ((timeDiff == 0) | (timeDiff > 1))            
         yearlist = yearlist[mask]
         idx += 1
     return yearlist
-
 
 def gen_composite(data, keyDates, months = range(-12,13)):
     """
@@ -147,31 +147,36 @@ def gen_composite(data, keyDates, months = range(-12,13)):
     return composite
 
 
-def gen_keydates(df, key, djf_data=False):
+def gen_keydates(df, key, djf_data=False, no_overlap_prd = 365):
     """
     Identifies the largest/smallest values associated with a given key. 
     Then calls a function to filter out overlapping dates within 365 days.
     Finally, it selects the top 11, sorts them to ascending order, 
     and returns them as a dictionary with keys of 'max' and 'min'.
+    prd sets the number of days within which a keydate will be rejected
+    if it reoccurs within, in relation to a stronger sample. Default is 1yr.
+    N.b. the n in df.sort().head(n) is to only read in the strongest dates
+    saving some space/speed so the operation isnt performed on all the data.
     """
-    if djf_data:
-        # If this is the DJF data then use a slightly modified function.
-        tmpmax = find_non_overlapping_DJF_sample(df.sort(key,ascending=False
-                                                          ).head(150).index)
-        tmpmin = find_non_overlapping_DJF_sample(df.sort(key,ascending=True
-                                                          ).head(150).index)
+    tmpvals={}
+    if djf_data: # For DJF data use modified function
+        for n, phase in enumerate([False, True]): # Maximum, Minimum Phase
+            tmpvals[n] = hbgwl.find_non_overlapping_DJF_sample(
+                df.sort(key, ascending=phase).head(600).index, key=key)
     else:
-        tmpmax = find_non_overlapping_sample(df.sort(key,ascending=False
-                                                          ).head(150).index)
-        tmpmin = find_non_overlapping_sample(df.sort(key,ascending=True
-                                                          ).head(150).index)
+        for n, phase in enumerate([False, True]): # Maximum, Minimum Phase
+            tmpvals[n] = find_non_overlapping_sample(
+                df.sort(key, ascending=phase).head(600).index, prd = no_overlap_prd)        
+
     compPhase ={}
-    compPhase['max'] = tmpmax[0:11].order()
-    compPhase['min'] = tmpmin[0:11].order()
+    compPhase['max'] = tmpvals[0][0:11].order()
+    compPhase['min'] = tmpvals[1][0:11].order()
     print("Average for max/min sample of {0}: {1:2.3f} and {2:2.3f}".format(
             key,np.mean(df[key][compPhase['max']]),
             np.mean(df[key][compPhase['min']])))
     return compPhase
+
+
 
 
 def get_DJF_means(data, var, chatty=False):
@@ -352,8 +357,7 @@ def status(current, end_val, key, bar_length=20):
     sys.stdout.flush()
 
 
-
-def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase):
+def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase, aod_peak):
     """
     Plot of the composite means at specific epochs with Conf Intervals.
     """
@@ -372,9 +376,9 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase):
     big_ax.set_frame_on(False)
     big_ax.grid(False)
     big_ax.set_xlabel(r"$\delta$ weather system origin (days/month)", fontsize=fsize)
-    big_ax.set_ylabel(r"Wind direction", fontsize=fsize)
+    big_ax.set_ylabel(r"Origin direction", fontsize=fsize)
     axs[0, 0].set_ylim([-0.1,7.1])
-    axs[0, 0].set_xlim([-10,10])
+    axs[0, 0].set_xlim([-5,5])
     epoch = [-20, -10, -5, 0, 5, 10, 20, 19]
     rstart = min(epoch)
     rfin = max(epoch)+1
@@ -392,51 +396,45 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase):
                                           months=range(rstart,rfin)) for key in keys}
         comp_negnao = {key : gen_composite(data=df[key], keyDates=naoPhase["min"],
                                           months=range(rstart,rfin)) for key in keys}
+        comp_aod = {key : gen_composite(data=df[key], keyDates=aod_peak["max"],
+                                       months=range(rstart,rfin)) for key in keys} 
+        
         smax_means, smax_sem = extractCompositeStatsAllDir(comp_smax, epoch=epoch[n])
         smin_means, smin_sem = extractCompositeStatsAllDir(comp_smin, epoch=epoch[n])
         elnino_means, elnino_sem = extractCompositeStatsAllDir(comp_elnino, epoch=epoch[n])
         lanina_means, lanina_sem = extractCompositeStatsAllDir(comp_lanina, epoch=epoch[n])
         posnao_means, posnao_sem = extractCompositeStatsAllDir(comp_posnao, epoch=epoch[n])
         negnao_means, negnao_sem = extractCompositeStatsAllDir(comp_negnao, epoch=epoch[n])
-        if n < 4:       
-            axs[0,n].errorbar(posnao_means,ticks, xerr=posnao_sem, fmt='o-',
-                        color=sns.color_palette()[1], ms=5.0, linewidth=1.0)
-            axs[0,n].errorbar(negnao_means,ticks, xerr=negnao_sem, fmt='o-',
-                        color=sns.color_palette()[5], ms=5.0, linewidth=1.0)
-            axs[0,n].errorbar(elnino_means,ticks, xerr=elnino_sem, fmt='o-',
-                        color=sns.color_palette()[4],ms=5.0, linewidth=1.0)
-            axs[0,n].errorbar(lanina_means,ticks, xerr=lanina_sem, fmt='o-',
-                    color=sns.color_palette()[3], ms=5.0, linewidth=1.0)
-            axs[0,n].errorbar(smax_means,ticks, xerr=smax_sem, fmt='o-',
-                            color=sns.color_palette()[2], ms=5.0, linewidth=1.0)             
-            axs[0,n].errorbar(smin_means,ticks, xerr=smin_sem, fmt='o-',
-                    color=sns.color_palette()[0], ms=5.0, linewidth=1.0)
+        aod_means, aod_sem = extractCompositeStatsAllDir(comp_aod, epoch=epoch[n])
+        
+        plotKeyArgs = [(posnao_means, posnao_sem,'^-', sns.color_palette()[1]),
+                      (negnao_means, negnao_sem, 'o-', sns.color_palette()[5]),
+                      (elnino_means, elnino_sem, '^-', sns.color_palette()[4]),
+                      (lanina_means, lanina_sem, 'o-', sns.color_palette()[3]),
+                      (smax_means, smax_sem, '^-', sns.color_palette()[2]),
+                      (smin_means, smin_sem, 'o-', sns.color_palette()[0]),
+                      (aod_means, aod_sem, '^-', '#ff80df')]
+        if n < 4:
+            for forcing in plotKeyArgs:
+                a, b, c, d = forcing
+                axs[0,n].errorbar(a, ticks, xerr=b, fmt=c,color=d, ms=5.0, linewidth=1.0)
             axs[0,n].fill_betweenx(ticks, conf_df[2.5], conf_df[97.5],
-                             color='gray',linewidth=0.5,alpha=0.3)
+                                     color='gray',linewidth=0.5,alpha=0.2)
             axs[0,n].fill_betweenx(ticks, conf_df[0.5], conf_df[99.5],
-                             color='gray',linewidth=0.5,alpha=0.3)
-            axs[0,n].set_title(r"Epoch "+str(epoch[n]), fontsize=fsize)
+                                     color='gray',linewidth=0.5,alpha=0.2)
+            axs[0,n].set_title(r"Lag "+str(epoch[n]), fontsize=fsize)
         elif n >= 4 and n < 7:
-            axs[1,n-4].errorbar(posnao_means,ticks, xerr=posnao_sem, fmt='o-',
-                        color=sns.color_palette()[1], ms=5.0, linewidth=1.0)
-            axs[1,n-4].errorbar(negnao_means,ticks, xerr=negnao_sem, fmt='o-',
-                        color=sns.color_palette()[5], ms=5.0, linewidth=1.0)
-            axs[1,n-4].errorbar(elnino_means,ticks, xerr=elnino_sem, fmt='o-',
-                        color=sns.color_palette()[4],ms=5.0, linewidth=1.0)
-            axs[1,n-4].errorbar(lanina_means,ticks, xerr=lanina_sem, fmt='o-',
-                        color=sns.color_palette()[3], ms=5.0, linewidth=1.0)            
-            axs[1,n-4].errorbar(smax_means,ticks, xerr=smax_sem, fmt='o-',
-                        color=sns.color_palette()[2], ms=5.0, linewidth=1.0)
-            axs[1,n-4].errorbar(smin_means,ticks, xerr=smin_sem, fmt='o-',
-                    color=sns.color_palette()[0], ms=5.0, linewidth=1.0)        
+            for forcing in plotKeyArgs:
+                a, b, c, d = forcing
+                axs[1,n-4].errorbar(a,ticks, xerr=b, fmt=c,color=d, ms=5.0, linewidth=1.0)        
             axs[1,n-4].fill_betweenx(ticks, conf_df[2.5], conf_df[97.5],
-                             color='gray',linewidth=0.5,alpha=0.3)
+                             color='gray',linewidth=0.5,alpha=0.2)
             axs[1,n-4].fill_betweenx(ticks, conf_df[0.5], conf_df[99.5],
-                             color='gray',linewidth=0.5,alpha=0.3)
+                             color='gray',linewidth=0.5,alpha=0.2)
             axs[1,n-4].set_title(r"Epoch "+str(epoch[n]), fontsize=fsize)
         if n == 7:
             fig_results.delaxes(axs[1,n-4]) # Erase the last figure block
-    axs[0,0].legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","S. Max.","S. Min."],
+    axs[0,0].legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","S. Max.","S. Min.","AOD"],
                loc=6, prop={'size':12}, numpoints=1,markerscale=1.0,
                fancybox=True,frameon=True,bbox_to_anchor=(3.8, -0.5))
 
@@ -676,7 +674,95 @@ def figure_seasons(data):
     return
 
 
-def fig_forcing_composite(df,naoPhase,ensoPhase,solarPhase):
+def figHorizCompOnePrd(df, conf_df, solarPhase, 
+                              naoPhase, ensoPhase, aod_peak, epoch=0):
+    """
+        Horizontal version of composite figure. Composite values for each weather system origin
+        are calculated (with SEM uncertainty) and plotted over the MC-calculated confidence
+        intervals. The Lag period (epoch) is also specified. (E.g. Lag 0 are the forcing key
+        months alligned to the HBGWL key months).
+    """
+    # Extract the data from the dataframe of monthly frequency and confidence intervals 
+    keys=["N","NE","E","SE","S","SW","W","NW"]
+    comp_smax = {key : gen_composite(data=df[key], keyDates=solarPhase["max"]) for key in keys}
+    comp_smin = {key : gen_composite(data=df[key], keyDates=solarPhase["min"]) for key in keys}
+    comp_elnino = {key : gen_composite(data=df[key], keyDates=ensoPhase["max"]) for key in keys}
+    comp_lanina = {key : gen_composite(data=df[key], keyDates=ensoPhase["min"]) for key in keys}
+    comp_posnao = {key : gen_composite(data=df[key], keyDates=naoPhase["max"]) for key in keys}
+    comp_negnao = {key : gen_composite(data=df[key], keyDates=naoPhase["min"]) for key in keys}    
+    comp_aod = {key : gen_composite(data=df[key], keyDates=aod_peak["max"]) for key in keys} 
+    
+    smax_means, smax_sem = extractCompositeStatsAllDir(comp_smax, epoch=epoch)
+    smin_means, smin_sem = extractCompositeStatsAllDir(comp_smin, epoch=epoch)
+    elnino_means, elnino_sem = extractCompositeStatsAllDir(comp_elnino, epoch=epoch)
+    lanina_means, lanina_sem = extractCompositeStatsAllDir(comp_lanina, epoch=epoch)
+    posnao_means, posnao_sem = extractCompositeStatsAllDir(comp_posnao, epoch=epoch)
+    negnao_means, negnao_sem = extractCompositeStatsAllDir(comp_negnao, epoch=epoch)
+    aod_means, aod_sem = extractCompositeStatsAllDir(comp_aod, epoch=epoch)
+    
+    # Create the plot
+    props = dict(boxstyle='round', facecolor='w', alpha=0.75)
+    majorLocator   = plt.MultipleLocator(1)
+    ticks = np.arange(0, 8, 1)
+    cfilled = ['','N','NE','E','SE','S','SW','W','NW','']
+
+    fig_results = plt.figure()
+    fig_results,(ax1, ax2)=plt.subplots(2,1,sharex=True)
+    fig_results.set_size_inches(8,8)
+    
+    big_ax = fig_results.add_subplot(111)
+    big_ax.set_axis_bgcolor('none')
+    big_ax.tick_params(labelcolor='none', top='off', 
+                       bottom='off',left='off', right='off')
+    big_ax.set_frame_on(False)
+    big_ax.grid(False)
+    big_ax.set_ylabel(r"$\delta$ weather system origin (days/month)", fontsize=11)
+    big_ax.set_xlabel(r"Direction", fontsize=11)
+    
+    ax1.set_xlim([-0.1,7.1])
+    
+    ax1.errorbar(ticks, posnao_means, yerr=posnao_sem, fmt='^', capsize=5.0, 
+                 color=sns.color_palette()[1],ms=6.0, alpha=0.8, linewidth=2)
+    ax1.errorbar(ticks, negnao_means, yerr=negnao_sem, fmt='o', capsize=5.0, 
+                 color=sns.color_palette()[1],ms=6.0, alpha=0.8, linewidth=2)
+
+    
+    ax1.errorbar(ticks, elnino_means, yerr=elnino_sem, fmt='^', capsize=5.0, 
+                 color=sns.color_palette()[0], ms=6.0, alpha=0.8, linewidth=2)
+    ax1.errorbar(ticks, lanina_means, yerr=lanina_sem, fmt='o', capsize=5.0, 
+                 color=sns.color_palette()[0], ms=6.0, alpha=0.8, linewidth=2)
+    
+
+    ax2.errorbar(ticks, smax_means, yerr=smax_sem, fmt='^', capsize=5.0, 
+                 color=sns.color_palette()[2],ms=6.0, alpha=0.8, linewidth=2)
+    ax2.errorbar(ticks, smin_means, yerr=smin_sem, fmt='o', capsize=5.0, 
+                 color=sns.color_palette()[2],ms=6.0, alpha=0.8, linewidth=2)
+    
+    ax2.errorbar(ticks, aod_means, yerr=aod_sem, fmt='^', capsize=5.0, 
+                 color=sns.color_palette()[3],ms=6.0, alpha=0.8, linewidth=2)
+    
+    legb=ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña"], 
+                    loc=0, prop={'size':11}, numpoints=1,
+                    markerscale=1., frameon=True, fancybox=True)
+    
+    legb=ax2.legend(["Solar Max.","Solar Min.","AOD peak"], 
+                    loc=0, prop={'size':11}, numpoints=1,
+                    markerscale=1., frameon=True, fancybox=True)
+
+    for ax in [ax1,ax2]:
+        ax.fill_between(ticks, conf_df[5.0], conf_df[95.0],color='gray',linewidth=0.5,alpha=0.2)
+        ax.fill_between(ticks, conf_df[2.5], conf_df[97.5],color='gray',linewidth=0.5,alpha=0.2)
+        ax.fill_between(ticks, conf_df[0.5], conf_df[99.5],color='gray',linewidth=0.5,alpha=0.2)
+    
+    ax1.set_ylim(-10,10)
+    ax2.set_ylim(-6,6)
+    ax1.set_xticklabels(cfilled, fontsize=11) # place labels on x-axis
+    ax1.set_title(r"Peak forcing composites (lag {0}, strongest months)".format(str(epoch)), fontsize=11)
+    fig_results.savefig('Figs/epoch'+str(epoch)+'_horiz_comp.pdf', dpi=300)
+    fig_results.show()
+    return
+
+def fig_forcing_composite(df, naoPhase, ensoPhase, solarPhase, aod_peak):
     """
     Create a composite figure of the NAO, ENSO and solar forcing.
     Use the composite function to create the values within 
@@ -684,57 +770,65 @@ def fig_forcing_composite(df,naoPhase,ensoPhase,solarPhase):
     Output: figure 
     """
     fsize = 11 # <-- Font size kwarg
-    fig_comp,(ax1, ax2, ax3)=plt.subplots(3,1,sharex=True)
-    ax1,ax2
+    fig_comp,(ax1, ax2, ax3, ax4)=plt.subplots(4,1,sharex=True)
+    #ax1,ax2
     fig_comp.set_size_inches(9,6)
     mrange = range(-25,26)  # <-- Set composite window here
     cols = [sns.color_palette()[0],sns.color_palette()[2]]
+    line_stlz = [":","-"]
     
     for n, key in enumerate(["min","max"]):
         composite = gen_composite(data=df.NAO, keyDates=naoPhase[key],
                                   months=mrange)
-        ax1.errorbar(composite["epoch"], composite["means"],
-                 xerr=None,yerr=composite["sem"],color=cols[n])
+        ax1.errorbar(composite["epoch"], composite["means"],ls=line_stlz[n],lw=1.5,
+                 xerr=None,yerr=composite["sem"],color=sns.color_palette()[1])
     
     for n, key in enumerate(["min","max"]):
         composite = gen_composite(data=df.MEI, keyDates=ensoPhase[key],
                                   months=mrange)
-        ax2.errorbar(composite["epoch"], composite["means"],
-                 xerr=None,yerr=composite["sem"],color=cols[n])
+        ax2.errorbar(composite["epoch"], composite["means"],ls=line_stlz[n],lw=1.5,
+                 xerr=None,yerr=composite["sem"],color=sns.color_palette()[0])
         
     for n, key in enumerate(["min","max"]):
         composite = gen_composite(data=df.Wolf, keyDates=solarPhase[key],
                                   months=mrange)
-        ax3.errorbar(composite["epoch"], composite["means"],
-                 xerr=None,yerr=composite["sem"],color=cols[n])
+        ax3.errorbar(composite["epoch"], composite["means"],ls=line_stlz[n],lw=1.5,
+                 xerr=None,yerr=composite["sem"],color=sns.color_palette()[2])
+        
+
+    composite = gen_composite(data=df.NHemi_AOD, keyDates=aod_peak['max'],
+                                      months=mrange)
+    ax4.errorbar(composite["epoch"], composite["means"],ls='-',lw=1.5,
+                 xerr=None,yerr=composite["sem"],color=sns.color_palette()[3])
+        
+        
     ax1.set_xlim(min(mrange),max(mrange))
     ax1.set_ylabel("NAO index",size=fsize)
     ax2.set_ylabel("ENSO index",size=fsize)
     ax3.set_ylabel("Sunspot number",size=fsize)
-    ax3.set_xlabel("Months since peak values",size=fsize)
+    ax4.set_ylabel("AOD",size=fsize)
+    ax4.set_xlabel("Months since peak values",size=fsize)
     fig_comp.savefig('Figs/composite_forcing.pdf', dpi=300)
     fig_comp.show()
     return
 
 
-def figure_montecarlo_kde(df,its=1000):
+def figure_montecarlo_kde(mc_array):
     """
-    Create a KDE figure of the Monte Carlo-generated samples
-    for wind direction.
+    Create KDE fig of MC-generated samples for wind origin direction. 
+    Nb. order of keys are intentional so direction colors are same.
     """
     fig_kde = plt.figure()
     fig_kde.set_size_inches(4,4)
     ax1 = fig_kde.add_subplot(111)
-    # nb. order of keys are intentional so colors
-    # of cardinal directions are consistent.
+
     keys=["N","E","S","W","NE","SE","SW","NW"]
-    for n,key in enumerate(keys):
-        status(current=n, end_val=len(keys)-1, key=key)
-        #print("\rCalculating {0}...".format(key),end="")
-        ax1 = monteCarlo(df=df, its=its, show_kde=True, key=key)
-    print("\rFinished MC calculation")
-    ax1.set_title("Monte Carlo distributions")
-    ax1.set_ylabel("KDE")
+    for key in keys:
+        ax1 = sns.kdeplot(mc_array[key],legend=False,alpha=0.75)
+    ax1.legend(keys, prop={'size':12}, numpoints=1,markerscale=1.0,
+               fancybox=True,frameon=True)
+    ax1.set_title("Monte Carlo sample distributions")
+    ax1.set_ylabel("Density")
     ax1.set_xlabel(r"$\delta$ weather system origin (days/month)")
     fig_kde.savefig('Figs/MC_kde.pdf', dpi=300)
     fig_kde.show()
