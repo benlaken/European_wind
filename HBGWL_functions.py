@@ -161,7 +161,7 @@ def gen_keydates(df, key, djf_data=False, no_overlap_prd = 365):
     tmpvals={}
     if djf_data: # For DJF data use modified function
         for n, phase in enumerate([False, True]): # Maximum, Minimum Phase
-            tmpvals[n] = hbgwl.find_non_overlapping_DJF_sample(
+            tmpvals[n] = find_non_overlapping_DJF_sample(
                 df.sort(key, ascending=phase).head(600).index, key=key)
     else:
         for n, phase in enumerate([False, True]): # Maximum, Minimum Phase
@@ -223,24 +223,17 @@ def get_DJF_frame(data):
     return djf_frame
 
 
-def get_p_from_kdes(df, solarPhase, naoPhase, ensoPhase, its=1000, epoch=0, djf=False):
+def get_p_from_kdes(df, mc, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, djf=False):
     """
     Use kernel density estimates to Monte Carlo outputs to identify p values for the
     mean and mean uncertainty range values. Print the output to the screen.
     It behaves diffrently for monthly means and DJF means due to slight data format diffs.
     """
     keys=["N","NE","E","SE","S","SW","W","NW"]
-    date_groups = [solarPhase["max"],solarPhase["min"],
-                   naoPhase["max"],naoPhase["min"],
-                   ensoPhase["max"],ensoPhase["min"]]
+    date_groups = [solarPhase["max"],solarPhase["min"],naoPhase["max"],
+                   naoPhase["min"], ensoPhase["max"],ensoPhase["min"], aod_peak['max']]
     comp_groups = ["Solar maximum", "Solar minimum", "positive NAO",
-                  "negative NAO", "El Nino", "La Nina"]
-    # Populate a dataframe with monte carlo outputs for each direction
-    mc = pd.DataFrame()
-    print("Running Monte Carlo...")
-    for n,key in enumerate(keys):
-        mc[key] = monteCarlo(df=df, key=key, its=its, give_array=True)
-        status(current=n,end_val=len(keys)-1,key=key)
+                  "negative NAO", "El Nino", "La Nina","Stratospheric AOD peaks"]
     print("\n\nDisplaying mean (uncertainty) and p-value (with range covered by uncertainty):\n")
     if not djf:
         for i, date_group in enumerate(date_groups):
@@ -268,6 +261,57 @@ def get_p_from_kdes(df, solarPhase, naoPhase, ensoPhase, its=1000, epoch=0, djf=
                         key,mval, err, kde(mval)[0],kde(mval-err)[0],kde(mval+err)[0]))
             print(end='\n')        
     return
+
+
+def getSeasonalFrame(data, season):
+    """
+    Return a dataframe with one mean (and SEM) per season per year 
+    for all data. Season is a keyword ("DJF","MAM","JJA", or "SON")
+    Input: Pandas Dataframe (monthly resolution)
+    Output: Pandas Dataframe annual DJF mean 
+    """
+    container={}
+    for variable in data:
+        container[variable]=getSeasonalMeans(data=data,season=season, var=variable)
+        
+    djf_frame = pd.concat([container["N"],container["NE"],container["E"],
+                 container["SE"],container["S"],container["SW"],
+                 container["W"],container["NW"],container["Wolf"],
+                 container["NAO"],container["MEI"],container["NHemi_AOD"]],axis=1)
+    return djf_frame
+
+
+def getSeasonalMeans(data, var, season=None):
+    """
+    From a monthly resolution dataframe object, extract the monthly delta values
+    for a specified direction variable as a mean over a given seasonal period .
+    """
+    year_index = []
+    djf_values = []
+    loop_year = min(data.index.year)
+    end_year = max(data.index.year)
+    while loop_year < end_year:
+        if season is "DJF":
+            start = dt.datetime(loop_year, 12, 31)
+            end = dt.datetime(loop_year+1, 2, 28)
+        elif season is "MAM":
+            start = dt.datetime(loop_year, 3, 31)
+            end = dt.datetime(loop_year, 5, 31)
+        elif season is "JJA":
+            start = dt.datetime(loop_year, 6, 30)
+            end = dt.datetime(loop_year, 8, 31)            
+        elif season is "SON":
+            start = dt.datetime(loop_year, 9, 30)
+            end = dt.datetime(loop_year, 11, 30)        
+        else:
+            raise ValueError("{0} passed as season keyword".format(season))
+        year_index.append(loop_year)
+        djf_values.append([np.mean(data[var][start:end]),
+                          np.std(data[var][start:end])/np.sqrt(2)])
+        loop_year += 1
+    output_df = pd.DataFrame(data=djf_values, 
+                             index=year_index, columns=[var,var+"_SEM"])
+    return output_df
 
 
 def getWindDic(hb_to_direction = False):
