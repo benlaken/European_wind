@@ -3,6 +3,7 @@ import pandas as pd
 import datetime as dt
 import random
 import sys
+from tabulate import tabulate
 from scipy import stats
 from dateutil.relativedelta import relativedelta
 import matplotlib.pyplot as plt
@@ -301,6 +302,81 @@ def get_p_from_kdes(df, mc, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, 
     return
 
 
+def get_pTable(df, mc, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, seasonal=False):
+    """
+    Use kernel density estimates from Monte Carlo outputs to identify p values for the
+    mean and uncertainty range values. Returns output as a list for the Tabular library.
+    It behaves diffrently for monthly means and seasonal means due to data format diffs.
+    """
+    keys=["N","NE","E","SE","S","SW","W","NW"]
+    date_groups = [naoPhase["max"], naoPhase["min"], ensoPhase["max"],ensoPhase["min"], 
+                   solarPhase["max"],solarPhase["min"],aod_peak['max']]
+    comp_groups = ["Pos. NAO","Neg. NAO", "El Nino", "La Nina",
+                   "Solar max.","Solar min.","High AOD"]
+    table = []
+    table.append(['','N','NE','E','SE','S','SW','W','NW']) # first row of table list obj.
+    if not seasonal:
+        for n,forcing in enumerate(date_groups):
+            tmp_mnlist = []
+            tmp_mnlist.append(comp_groups[n])
+            tmp_plow_list = []
+            tmp_pmean_list = []
+            tmp_pupp_list = []
+            tmp_plow_list.append('p-val lower')
+            tmp_pmean_list.append('p-val mean')
+            tmp_pupp_list.append('p-val upper')
+            for i,key in enumerate(keys):
+                comp = {key : gen_composite(data=df[key],keyDates=forcing,
+                                            months=[epoch]) for key in keys}
+                means, sem = extractCompositeStatsAllDir(comp, epoch=epoch)
+                kde = stats.gaussian_kde(mc[key])
+                mval = means[i][0]
+                err = sem[i][0]
+                mstring = "{0:3.2f}±{1:3.2f}".format(mval,err)
+                tmp_mnlist.append(mstring)
+                plower = notation_switch(kde(mval-err)[0])       #"{0:3.2f}".format(kde(mval-err)[0])        
+                pmean = notation_switch(kde(mval)[0])            #"{0:3.2f}".format(kde(mval)[0])
+                pupper = notation_switch(kde(mval+err)[0])       #"{0:3.2f}".format(kde(mval+err)[0])
+                tmp_plow_list.append(plower)
+                tmp_pmean_list.append(pmean)
+                tmp_pupp_list.append(pupper)
+            table.append(tmp_mnlist)
+            table.append(tmp_plow_list)
+            table.append(tmp_pmean_list)
+            table.append(tmp_pupp_list)
+            table.append(['--','--','--','--','--','--','--','--','--'])
+        return table
+    else:
+        for n,forcing in enumerate(date_groups):
+            tmp_mnlist = []
+            tmp_mnlist.append(comp_groups[n])
+            tmp_plow_list = []
+            tmp_pmean_list = []
+            tmp_pupp_list = []
+            tmp_plow_list.append('p-val lower')
+            tmp_pmean_list.append('p-val mean')
+            tmp_pupp_list.append('p-val upper')
+            means, sem = gen_composite_seasonal(data=df, keyYears=forcing)
+            for i,key in enumerate(keys):
+                kde = stats.gaussian_kde(mc[key])
+                mval = means[i]
+                err = sem[i]
+                mstring = "{0:3.2f}±{1:3.2f}".format(mval,err)
+                tmp_mnlist.append(mstring)
+                plower = notation_switch(kde(mval-err)[0])       #"{0:3.2f}".format(kde(mval-err)[0])        
+                pmean = notation_switch(kde(mval)[0])            #"{0:3.2f}".format(kde(mval)[0])
+                pupper = notation_switch(kde(mval+err)[0])       #"{0:3.2f}".format(kde(mval+err)[0])
+                tmp_plow_list.append(plower)
+                tmp_pmean_list.append(pmean)
+                tmp_pupp_list.append(pupper)
+            table.append(tmp_mnlist)
+            table.append(tmp_plow_list)
+            table.append(tmp_pmean_list)
+            table.append(tmp_pupp_list)
+            table.append(['--','--','--','--','--','--','--','--','--'])
+        return table
+
+
 def getSeasonalFrame(data, season):
     """
     Return a dataframe with one mean (and SEM) per season per year 
@@ -400,6 +476,14 @@ def monteCarlo(df, key, its=1000, size = 11,show_kde = False, give_array=False,
     else: 
         return {pcn: stats.scoreatpercentile(rnd_means, pcn) for pcn in percentiles}
     
+
+def notation_switch(val):
+    """ Switch between 2sig fig float and scientific notation for my table"""
+    if abs(val) > 1000. or abs(val) < 0.001:
+        return "{0:2.2E}".format(val)
+    else:
+        return "{0:2.2f}".format(val)    
+
     
 def season_climatology(data,chatty=False):
     """
@@ -756,13 +840,17 @@ def figure_seasons(data):
     return
 
 
-def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, seasonal=None):
+def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0,
+                       seasonal=None, giveYrange=None):
     """
         Horizontal version of composite figure. Composite values for each weather system origin
         are calculated (with SEM uncertainty) and plotted over the MC-calculated confidence
         intervals. The Lag period (epoch) is also specified. (E.g. Lag 0 are the forcing key
         months alligned to the HBGWL key months).
         Seasonal should be a string Keyword (e.g. "DJF")
+        giveYrange should be a tuple of floats to set the upper and lower limit of the y-axis
+        range (note the two pannels have a linked y-axis). If not set, the figure will set its
+        own y-range. (e.g. giveYrange=(-5,5)).
     """
     # Extract the data from the dataframe of monthly frequency and confidence intervals 
     keys=["N","NE","E","SE","S","SW","W","NW"]
@@ -844,7 +932,10 @@ def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, e
         ax.fill_between(ticks, conf_df[2.5], conf_df[97.5],color='gray',linewidth=0.5,alpha=0.2)
         ax.fill_between(ticks, conf_df[0.5], conf_df[99.5],color='gray',linewidth=0.5,alpha=0.2)
     
-    #ax2.set_ylim(-6,6)
+    if giveYrange:
+        lower, upper = giveYrange
+        ax2.set_ylim(lower,upper)
+        
     ax1.set_xticklabels(cfilled, fontsize=11) # place labels on x-axis
     if not seasonal:
         ax1.set_title(r"Peak forcing composites (lag {0}, strongest months)".format(str(epoch)), fontsize=11)
