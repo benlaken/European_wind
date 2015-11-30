@@ -188,7 +188,7 @@ def gen_composite_seasonal(data, keyYears):
     return np.array(tmp_means), np.array(tmp_sem)
 
 
-def gen_keydates(df, key, seasonalData=False, no_overlap_prd = 365):
+def gen_keydates(df, key, seasonalData=False, no_overlap_prd = 365, chatty=True):
     """
     Identifies the largest/smallest values associated with a given key. 
     Then calls a function to filter out overlapping dates within 365 days.
@@ -212,9 +212,10 @@ def gen_keydates(df, key, seasonalData=False, no_overlap_prd = 365):
     compPhase ={}
     compPhase['max'] = tmpvals[0][0:11].order()
     compPhase['min'] = tmpvals[1][0:11].order()
-    print("Average for max/min sample of {0}: {1:2.3f} and {2:2.3f}".format(
-            key,np.mean(df[key][compPhase['max']]),
-            np.mean(df[key][compPhase['min']])))
+    if chatty:
+        print("Average for max/min sample of {0}: {1:2.3f} and {2:2.3f}".format(
+                key,np.mean(df[key][compPhase['max']]),
+                np.mean(df[key][compPhase['min']])))
     return compPhase
 
 
@@ -309,13 +310,13 @@ def get_pTable(df, mc, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, seaso
     It behaves diffrently for monthly means and seasonal means due to data format diffs.
     """
     keys=["N","NE","E","SE","S","SW","W","NW"]
-    date_groups = [naoPhase["max"], naoPhase["min"], ensoPhase["max"],ensoPhase["min"], 
-                   solarPhase["max"],solarPhase["min"],aod_peak['max']]
     comp_groups = ["Pos. NAO","Neg. NAO", "El Nino", "La Nina",
                    "Solar max.","Solar min.","High AOD"]
     table = []
-    table.append(['','N','NE','E','SE','S','SW','W','NW']) # first row of table list obj.
     if not seasonal:
+        date_groups = [naoPhase["max"], naoPhase["min"], ensoPhase["max"],ensoPhase["min"], 
+                   solarPhase["max"],solarPhase["min"],aod_peak['max']]
+        table.append(['','N','NE','E','SE','S','SW','W','NW']) # first row of table list obj.
         for n,forcing in enumerate(date_groups):
             tmp_mnlist = []
             tmp_mnlist.append(comp_groups[n])
@@ -347,6 +348,10 @@ def get_pTable(df, mc, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, seaso
             table.append(['--','--','--','--','--','--','--','--','--'])
         return table
     else:
+        date_groups = [naoPhase[seasonal]["max"], naoPhase[seasonal]["min"], ensoPhase[seasonal]["max"],
+                       ensoPhase[seasonal]["min"], solarPhase[seasonal]["max"],
+                       solarPhase[seasonal]["min"],aod_peak[seasonal]['max']]
+        table.append([seasonal,'N','NE','E','SE','S','SW','W','NW']) # first row of table list obj.
         for n,forcing in enumerate(date_groups):
             tmp_mnlist = []
             tmp_mnlist.append(comp_groups[n])
@@ -841,7 +846,7 @@ def figure_seasons(data):
 
 
 def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0,
-                       seasonal=None, giveYrange=None):
+                       szn=None, giveYrange=None):
     """
         Horizontal version of composite figure. Composite values for each weather system origin
         are calculated (with SEM uncertainty) and plotted over the MC-calculated confidence
@@ -854,7 +859,7 @@ def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, e
     """
     # Extract the data from the dataframe of monthly frequency and confidence intervals 
     keys=["N","NE","E","SE","S","SW","W","NW"]
-    if not seasonal:
+    if not szn:
         comp_smax = {key : gen_composite(data=df[key], keyDates=solarPhase["max"]) for key in keys}
         comp_smin = {key : gen_composite(data=df[key], keyDates=solarPhase["min"]) for key in keys}
         comp_elnino = {key : gen_composite(data=df[key], keyDates=ensoPhase["max"]) for key in keys}
@@ -870,13 +875,13 @@ def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, e
         negnao_means, negnao_sem = extractCompositeStatsAllDir(comp_negnao, epoch=epoch)
         aod_means, aod_sem = extractCompositeStatsAllDir(comp_aod, epoch=epoch)
     else:
-        smax_means,smax_sem = gen_composite_seasonal(data=df, keyYears=solarPhase["max"])
-        smin_means,smin_sem = gen_composite_seasonal(data=df, keyYears=solarPhase["min"])    
-        elnino_means,elnino_sem = gen_composite_seasonal(data=df, keyYears=ensoPhase["max"])
-        lanina_means,lanina_sem = gen_composite_seasonal(data=df, keyYears=ensoPhase["min"]) 
-        posnao_means,posnao_sem = gen_composite_seasonal(data=df, keyYears=naoPhase["max"])
-        negnao_means,negnao_sem = gen_composite_seasonal(data=df, keyYears=naoPhase["min"])
-        aod_means,aod_sem = gen_composite_seasonal(data=df, keyYears=aod_peak["max"])  
+        smax_means,smax_sem = gen_composite_seasonal(data=df, keyYears=solarPhase[szn]["max"])
+        smin_means,smin_sem = gen_composite_seasonal(data=df, keyYears=solarPhase[szn]["min"])    
+        elnino_means,elnino_sem = gen_composite_seasonal(data=df, keyYears=ensoPhase[szn]["max"])
+        lanina_means,lanina_sem = gen_composite_seasonal(data=df, keyYears=ensoPhase[szn]["min"]) 
+        posnao_means,posnao_sem = gen_composite_seasonal(data=df, keyYears=naoPhase[szn]["max"])
+        negnao_means,negnao_sem = gen_composite_seasonal(data=df, keyYears=naoPhase[szn]["min"])
+        aod_means,aod_sem = gen_composite_seasonal(data=df, keyYears=aod_peak[szn]["max"])  
         
     # Create the plot
     props = dict(boxstyle='round', facecolor='w', alpha=0.75)
@@ -937,12 +942,12 @@ def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, e
         ax2.set_ylim(lower,upper)
         
     ax1.set_xticklabels(cfilled, fontsize=11) # place labels on x-axis
-    if not seasonal:
+    if not szn:
         ax1.set_title(r"Peak forcing composites (lag {0}, strongest months)".format(str(epoch)), fontsize=11)
         fig_results.savefig('Figs/epoch'+str(epoch)+'_horiz_comp.pdf', dpi=300)
     else:
-        ax1.set_title(r"{0} peak forcing composites (lag {1})".format(seasonal, str(epoch)), fontsize=11)        
-        fig_results.savefig('Figs/'+seasonal+'_horiz_comp.pdf', dpi=300)
+        ax1.set_title(r"{0} peak forcing composites (lag {1})".format(szn, str(epoch)), fontsize=11)        
+        fig_results.savefig('Figs/'+szn+'_horiz_comp.pdf', dpi=300)
     fig_results.show()
     return
 
