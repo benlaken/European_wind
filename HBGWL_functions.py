@@ -263,6 +263,25 @@ def get_DJF_frame(data):
     return djf_frame
 
 
+def get_lagged_seasonal_composite(direction, df, lags, composite_years):
+    """
+    Return a list of means and SEM values to plot.
+    direction = a dictionary key e.g. "N"
+    df = a pandas dataframe to composite from, e.g. djf_frame
+    composite_years = a list of integer years to composite (e.g. seasonal_NAO_keys['DJF']['max'])
+    lags = a list of integers, used to lag the composite years e.g. (range(-5,6))
+    """
+    lagged_means = []
+    lagged_err = []
+    keys = ['N','NE','E','SE','S','SW','W','NW']
+    for lag in lags:
+        dates = composite_years + lag
+        comp_means, comp_err = gen_composite_seasonal(data=df, keyYears=dates)
+        lagged_means.append(comp_means[keys.index(direction)])
+        lagged_err.append(comp_err[keys.index(direction)])
+    return lagged_means, lagged_err
+
+
 def get_p_from_kdes(df, mc, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, djf=False):
     """
     Use kernel density estimates to Monte Carlo outputs to identify p values for the
@@ -1131,3 +1150,66 @@ def figure_SeasonalClimo(data):
     plt.savefig('Figs/Seasonal_climo.pdf', dpi=300)
     fig_pl.show()
     return
+
+
+def fig_lagged_composite(lags, szn, confs, df, NAO_keys, 
+                         ENSO_keys, SC_keys, aodPeak_keys):
+    """
+    Produces an 8-pannel figure, of anomalous origin over a given season, with
+    specified lags on the x-axis, and days/month on the y-axis. Lines of standard
+    colour and marking for each forcing, with a confidence interval band from the MC.
+    Input:
+    lags - an integer list (e.g. range(-5,6))
+    szn - a keyword relating to the season (e.g. "DJF")
+    confs - a confidence interval dataframe (e.g. confs_djf)
+    x_keys - a dictionary of key dates (e.g. seasonal_NAO_keys)
+    df - a dataframe of the seasonal data (e.g. djf_frame)
+    """    
+    forcings = [NAO_keys[szn]['max'], NAO_keys[szn]['min'], 
+                ENSO_keys[szn]['max'], ENSO_keys[szn]['min'],
+                SC_keys[szn]['max'],SC_keys[szn]['min'],
+                aodPeak_keys[szn]['max']]
+
+    colors = [sns.color_palette()[1], sns.color_palette()[1], sns.color_palette()[0],
+             sns.color_palette()[0],sns.color_palette()[2],sns.color_palette()[2],
+             sns.color_palette()[3]]
+
+    fmts = ["^-","o-","^-","o-","^-","o-","^-"]
+
+    fig_lag = plt.figure()
+    fig_lag,(ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8)=plt.subplots(8,1,sharex=True)
+    fig_lag.set_size_inches(10,24)
+
+    big_ax = fig_lag.add_subplot(111)
+    big_ax.set_axis_bgcolor('none')
+    big_ax.tick_params(labelcolor='none', top='off', 
+                       bottom='off',left='off', right='off')
+    big_ax.set_frame_on(False)
+    big_ax.grid(False)
+    big_ax.set_title(r"Lagged "+ szn +" $\delta$ weather system origin (days/month)", fontsize=11)
+    big_ax.set_xlabel(r"Lag (years)", fontsize=11)
+
+    for ax, direction in zip([ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8],["N","NE","E","SE","S","SW","W","NW"]):
+
+        for n, forcing in enumerate(forcings):
+            lagged_means, lagged_err = get_lagged_seasonal_composite(direction=direction, df = df, 
+                                        lags = lags, composite_years = forcing)
+            ax.errorbar(lags, lagged_means, yerr=lagged_err, fmt=fmts[n], capsize=5.0, 
+                             color=colors[n],ms=5.0, alpha=0.8, linewidth=1)
+
+        ax.fill_between(lags, confs[direction][0.5], confs[direction][99.5],color='gray',
+                        linewidth=0.5,alpha=0.2)
+        ax.fill_between(lags, confs[direction][2.5], confs[direction][97.5],color='gray',
+                        linewidth=0.5,alpha=0.2)
+        ax.fill_between(lags, confs[direction][5], confs[direction][95],color='gray',
+                        linewidth=0.5,alpha=0.2)
+
+        ax.set_ylabel(direction)
+
+        ax1.set_xlim(min(lags),max(lags))
+
+        legb=ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","Solar Max.",
+                         "Solar Min.","AOD peak"],loc=0, prop={'size':11}, numpoints=1,
+                        markerscale=1., frameon=True, fancybox=True)
+    fig_lag.savefig('Figs/Lags_'+szn+'perDir.pdf', dpi=300)
+    fig_lag.show()
