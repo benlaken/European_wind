@@ -709,7 +709,7 @@ def fig_distribution(data):
     ax2.set_ylabel(r"CDF", fontsize=fsize)
     ax2.set_xlabel(r"Frequency (days/month)", fontsize=fsize)
     ax1.set_title("Frequency distribution", fontsize=fsize) 
-    fig_kde.savefig("Figs/freq_dist.pdf",dpi=300)
+    fig_kde.savefig("Figs/freq_dist.pdf",dpi=300, bbox_inches='tight')
     fig_kde.show()
     return
 
@@ -821,7 +821,7 @@ def figure_forcing_TS(data, fnm="Forcing_TS.pdf"):
     ax3.set_ylabel("Sunspot number",size=fsize)
     ax4.set_ylabel("AOD",size=fsize)
     ax4.set_xlabel("Year",size=fsize)
-    fig_TS.savefig("Figs/"+fnm, dpi=300)
+    fig_TS.savefig("Figs/"+fnm, dpi=300, bbox_inches='tight')
     fig_TS.show()
     return
 
@@ -859,7 +859,7 @@ def figure_seasons(data):
         sns.violinplot(szn_frame, cut=0, linewidth=1.0, inner="quartiles",
                        color=clr,ax=axobs[j])
         axobs[j].set_ylabel(direction)
-    fig_TS.savefig('Figs/Seasonal_violin.pdf', dpi=300)
+    fig_TS.savefig('Figs/Seasonal_violin.pdf', dpi=300, bbox_inches='tight')
     fig_TS.show()
     return
 
@@ -963,10 +963,10 @@ def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, e
     ax1.set_xticklabels(cfilled, fontsize=11) # place labels on x-axis
     if not szn:
         ax1.set_title(r"Peak forcing composites (lag {0}, strongest months)".format(str(epoch)), fontsize=11)
-        fig_results.savefig('Figs/epoch'+str(epoch)+'_horiz_comp.pdf', dpi=300)
+        fig_results.savefig('Figs/epoch'+str(epoch)+'_horiz_comp.pdf', dpi=300, bbox_inches='tight')
     else:
         ax1.set_title(r"{0} peak forcing composites (lag {1})".format(szn, str(epoch)), fontsize=11)        
-        fig_results.savefig('Figs/'+szn+'_horiz_comp.pdf', dpi=300)
+        fig_results.savefig('Figs/'+szn+'_horiz_comp.pdf', dpi=300, bbox_inches='tight')
     fig_results.show()
     return
 
@@ -1018,7 +1018,7 @@ def fig_forcing_composite(df, naoPhase, ensoPhase, solarPhase, aod_peak):
     ax3.set_ylabel("Sunspot number",size=fsize)
     ax4.set_ylabel("AOD",size=fsize)
     ax4.set_xlabel("Months since peak values",size=fsize)
-    fig_comp.savefig('Figs/composite_forcing.pdf', dpi=300)
+    fig_comp.savefig('Figs/composite_forcing.pdf', dpi=300, bbox_inches='tight')
     fig_comp.show()
     return
 
@@ -1040,7 +1040,7 @@ def figure_montecarlo_kde(mc_array):
     ax1.set_title("Monte Carlo sample distributions")
     ax1.set_ylabel("Density")
     ax1.set_xlabel(r"$\delta$ weather system origin (days/month)")
-    fig_kde.savefig('Figs/MC_kde.pdf', dpi=300)
+    fig_kde.savefig('Figs/MC_kde.pdf', dpi=300, bbox_inches='tight')
     fig_kde.show()
     return
 
@@ -1098,10 +1098,11 @@ def figure_MonthlyTS(df):
     for n, wind in enumerate(["N","E","S","W"]):
         axobs[n].plot(df.index, df[wind],".",
                       color=sns.color_palette()[n],ms=3.0)
-        leg1=axobs[n].legend([wind], loc=2,prop={'size':fsize},
-                                   numpoints=1,markerscale=2.0)
-        leg1.get_frame().set_alpha(0.9)
-    fig_TS.savefig('Figs/Monthly_freq.pdf', dpi=300)
+        leg1=axobs[n].legend([wind], loc=2, prop={'size':fsize},
+                   fancybox=True, frameon=True, numpoints=1, markerscale=2.0)
+        #leg1.get_frame().set_alpha(0.9)
+
+    fig_TS.savefig('Figs/Monthly_freq.pdf', dpi=300, bbox_inches='tight')
     fig_TS.show()
     return
 
@@ -1147,7 +1148,7 @@ def figure_SeasonalClimo(data):
     ax1.grid(True)
     fig_pl.subplots_adjust(left=0.2, bottom=0.13, right=0.95, 
                            top=0.92, wspace=0, hspace=0)
-    plt.savefig('Figs/Seasonal_climo.pdf', dpi=300)
+    plt.savefig('Figs/Seasonal_climo.pdf', dpi=300, bbox_inches='tight')
     fig_pl.show()
     return
 
@@ -1211,5 +1212,5 @@ def fig_lagged_composite(lags, szn, confs, df, NAO_keys,
         legb=ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","Solar Max.",
                          "Solar Min.","AOD peak"],loc=0, prop={'size':11}, numpoints=1,
                         markerscale=1., frameon=True, fancybox=True)
-    fig_lag.savefig('Figs/Lags_'+szn+'perDir.pdf', dpi=300)
+    fig_lag.savefig('Figs/Lags_'+szn+'perDir.pdf', dpi=300, bbox_inches='tight')
     fig_lag.show()
