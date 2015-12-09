@@ -1214,3 +1214,69 @@ def fig_lagged_composite(lags, szn, confs, df, NAO_keys,
                         markerscale=1., frameon=True, fancybox=True)
     fig_lag.savefig('Figs/Lags_'+szn+'perDir.pdf', dpi=300, bbox_inches='tight')
     fig_lag.show()
+
+    
+def fig_individual_lag_comps(lags, szn, confs, df, NAO_keys, 
+                         ENSO_keys, SC_keys, aodPeak_keys, get_direction="N"):
+    """
+    Produces a 1-pannel figure, of anomalous origin over a given season, with
+    specified lags on the x-axis, and days/month on the y-axis, for a given 
+    origin direction. 
+    Lines of standard colour and marking for each forcing, with a confidence 
+    interval band from the MC.
+    Input:
+    lags - an integer list (e.g. range(-5,6))
+    szn - a keyword relating to the season (e.g. "DJF")
+    confs - a confidence interval dataframe (e.g. confs_djf)
+    x_keys - a dictionary of key dates (e.g. seasonal_NAO_keys)
+    df - a dataframe of the seasonal data (e.g. djf_frame)
+    get_direction - a string keyword indicating the direction (e.g. "N")
+    """    
+    forcings = [NAO_keys[szn]['max'], NAO_keys[szn]['min'], 
+                ENSO_keys[szn]['max'], ENSO_keys[szn]['min'],
+                SC_keys[szn]['max'],SC_keys[szn]['min'],
+                aodPeak_keys[szn]['max']]
+
+    colors = [sns.color_palette()[1], sns.color_palette()[1], sns.color_palette()[0],
+             sns.color_palette()[0],sns.color_palette()[2],sns.color_palette()[2],
+             sns.color_palette()[3]]
+
+    fmts = ["^-","o-","^-","o-","^-","o-","^-"]
+
+    fig_lag = plt.figure()
+    fig_lag,(ax1)=plt.subplots(1,1,sharex=True)
+    fig_lag.set_size_inches(10,3)
+
+    big_ax = fig_lag.add_subplot(111)
+    big_ax.set_axis_bgcolor('none')
+    big_ax.tick_params(labelcolor='none', top='off', 
+                       bottom='off',left='off', right='off')
+    big_ax.set_frame_on(False)
+    big_ax.grid(False)
+    big_ax.set_title(r"Lagged "+ szn +" $\delta$ weather system origin (days/month)", fontsize=11)
+    big_ax.set_xlabel(r"Lag (years)", fontsize=11)
+
+    for ax, direction in zip([ax1,ax1,ax1,ax1,ax1,ax1,ax1,ax1],["N","NE","E","SE","S","SW","W","NW"]):
+        if direction == get_direction:
+            for n, forcing in enumerate(forcings):
+                lagged_means, lagged_err = get_lagged_seasonal_composite(direction=direction, df = df, 
+                                            lags = lags, composite_years = forcing)
+                ax.errorbar(lags, lagged_means, yerr=lagged_err, fmt=fmts[n], capsize=5.0, 
+                                 color=colors[n],ms=5.0, alpha=0.8, linewidth=1)
+
+            ax.fill_between(lags, confs[direction][0.5], confs[direction][99.5],color='gray',
+                            linewidth=0.5,alpha=0.2)
+            ax.fill_between(lags, confs[direction][2.5], confs[direction][97.5],color='gray',
+                            linewidth=0.5,alpha=0.2)
+            ax.fill_between(lags, confs[direction][5], confs[direction][95],color='gray',
+                            linewidth=0.5,alpha=0.2)
+
+            ax.set_ylabel(direction)
+
+            ax1.set_xlim(min(lags),max(lags))
+
+            legb=ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","Solar Max.",
+                             "Solar Min.","AOD peak"],loc=1, prop={'size':11}, numpoints=1,
+                            markerscale=1., frameon=True, fancybox=True)
+    fig_lag.savefig('Figs/Lags_individual_'+szn+'perDir.pdf', dpi=300, bbox_inches='tight')
+    fig_lag.show()
