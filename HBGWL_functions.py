@@ -311,7 +311,7 @@ def get_p_from_kdes(df, mc, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0, 
         for i, date_group in enumerate(date_groups):
             comp = {key : np.mean(df[key][date_group]) for key in keys}
             means, sem = extract_DJF_errors(data=df, comp_means=comp, comp_keys=date_group)
-            print("{0}, DJF δ weather system origin".format(comp_groups[i]))
+            print("{0}, DJF δ weather system direction".format(comp_groups[i]))
             for n, key in enumerate(keys):
                 kde = stats.gaussian_kde(mc[key])
                 mval = means[n]
@@ -454,7 +454,7 @@ def getSeasonalMeans(data, var, season=None):
 
 def getWindDic(hb_to_direction = False):
     """
-    Return a dictionary of weather system origin data, either for HB direction,
+    Return a dictionary of weather system direction data, either for HB direction,
     or direction by HB code.
     """
     if hb_to_direction:
@@ -565,7 +565,7 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase, aod_p
                        bottom='off',left='off', right='off')
     big_ax.set_frame_on(False)
     big_ax.grid(False)
-    big_ax.set_xlabel(r"$\delta$ weather system origin (days/month)", fontsize=fsize)
+    big_ax.set_xlabel(r"$\delta$ weather system direction (days/month)", fontsize=fsize)
     big_ax.set_ylabel(r"Origin direction", fontsize=fsize)
     axs[0, 0].set_ylim([-0.1,7.1])
     axs[0, 0].set_xlim([-5,5])
@@ -681,8 +681,8 @@ def figure_composite_perEpoch(df, conf_df, solarPhase, ensoPhase, epoch=0):
             ax.fill_between(ticks, conf_df[0.5], conf_df[99.5],color='gray',linewidth=0.5,alpha=0.3)
         ax1.set_xticklabels(cfilled, fontsize=11) # place labels on x-axis
         ax1.set_title(r"Epoch "+str(epoch), fontsize=11)
-        ax1.set_ylabel(r"$\delta$ weather system origin (days/month)", fontsize=11)
-        ax2.set_ylabel(r"$\delta$ weather system origin (days/month)", fontsize=11)
+        ax1.set_ylabel(r"$\delta$ frequency (days/month)", fontsize=11)
+        ax2.set_ylabel(r"$\delta$ frequency (days/month)", fontsize=11)
         ax2.set_xlabel(r"Direction", fontsize=11)
         fig_results.savefig('Figs/epoch'+str(epoch)+'_composite.pdf', dpi=300)
         fig_results.show()
@@ -692,7 +692,7 @@ def figure_composite_perEpoch(df, conf_df, solarPhase, ensoPhase, epoch=0):
 def fig_distribution(data):
     """
     KDE and CDF of wind frequency for main compass directions
-    Input: Pandas dataframe of monthly weather system origin frequency
+    Input: Pandas dataframe of monthly weather system direction frequency
     Output: figure
     """
     fsize=11 # <-- Change font-size here
@@ -789,7 +789,7 @@ def figure_DJFcomposite(df, conf_df, naoPhase, ensoPhase, solarPhase):
 
     ax1.set_yticklabels(cfilled, fontsize=fsize) # place labels on x-axis
     ax1.set_ylabel("Direction")
-    ax1.set_xlabel(r"Mean $\delta$ weather system origin during DJF (days/month)")
+    ax1.set_xlabel(r"$\delta$ frequency (days/month)")
     ax1.set_xlim(-6,6)
     ax1.set_ylim(-0.1,7.1)
     fig_results.savefig('Figs/DFJ_composite.pdf', dpi=300)
@@ -845,7 +845,7 @@ def figure_seasons(data):
     big_ax.set_frame_on(False)
     big_ax.set_ylabel(r"Frequency (days/month)", labelpad=20, fontsize=fsize)
     big_ax.set_xlabel(r"Season", fontsize=fsize)
-    big_ax.set_title("Weather system origin by season", fontsize=fsize)
+    big_ax.set_title("Weather system direction by season", fontsize=fsize)
     big_ax.grid(False)
 
     directions = ["N","E","S","W"]
@@ -867,7 +867,7 @@ def figure_seasons(data):
 def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, epoch=0,
                        szn=None, giveYrange=None):
     """
-        Horizontal version of composite figure. Composite values for each weather system origin
+        Horizontal version of composite figure. Composite values for each weather system dir
         are calculated (with SEM uncertainty) and plotted over the MC-calculated confidence
         intervals. The Lag period (epoch) is also specified. (E.g. Lag 0 are the forcing key
         months alligned to the HBGWL key months).
@@ -918,7 +918,7 @@ def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, e
                        bottom='off',left='off', right='off')
     big_ax.set_frame_on(False)
     big_ax.grid(False)
-    big_ax.set_ylabel(r"$\delta$ weather system origin (days/month)", fontsize=11)
+    big_ax.set_ylabel(r"$\delta$ frequency (days/month)", fontsize=11)
     big_ax.set_xlabel(r"Direction", fontsize=11)
     
     ax1.set_xlim([-0.1,7.1])
@@ -1025,7 +1025,7 @@ def fig_forcing_composite(df, naoPhase, ensoPhase, solarPhase, aod_peak):
 
 def figure_montecarlo_kde(mc_array):
     """
-    Create KDE fig of MC-generated samples for wind origin direction. 
+    Create KDE fig of MC-generated samples for weather system direction. 
     Nb. order of keys are intentional so direction colors are same.
     """
     fig_kde = plt.figure()
@@ -1039,7 +1039,7 @@ def figure_montecarlo_kde(mc_array):
                fancybox=True,frameon=True)
     ax1.set_title("Monte Carlo sample distributions")
     ax1.set_ylabel("Density")
-    ax1.set_xlabel(r"$\delta$ weather system origin (days/month)")
+    ax1.set_xlabel(r"$\delta$ frequency (days/month)")
     fig_kde.savefig('Figs/MC_kde.pdf', dpi=300, bbox_inches='tight')
     fig_kde.show()
     return
@@ -1059,9 +1059,9 @@ def figure_djf_ts(df):
     big_ax.tick_params(labelcolor='none', top='off', 
                        bottom='off',left='off', right='off')
     big_ax.set_frame_on(False)
-    big_ax.set_ylabel(r"Mean $\delta$ frequency (days/month)", fontsize=fsize)
+    big_ax.set_ylabel(r"$\delta$ frequency (days/month)", fontsize=fsize)
     big_ax.set_xlabel(r"Year", fontsize=fsize)
-    big_ax.set_title("Winter $\delta$ weather system origin", fontsize=fsize)
+    big_ax.set_title("Winter weather system direction", fontsize=fsize)
     big_ax.grid(False)
     #props = ['b.','g.','r.','m.'] # <- some plot color and marker
     for n, wind in enumerate(["N","E","S","W"]):
@@ -1092,7 +1092,7 @@ def figure_MonthlyTS(df):
     big_ax.set_frame_on(False)
     big_ax.set_ylabel(r"Frequency (days/month)", fontsize=fsize)
     big_ax.set_xlabel(r"Year", fontsize=fsize)
-    big_ax.set_title("Monthly weather system origin", fontsize=fsize)
+    big_ax.set_title("Monthly weather system direction", fontsize=fsize)
     big_ax.grid(False)
     #props = ['b.','g.','r.','m.'] # <- some plot color and marker
     for n, wind in enumerate(["N","E","S","W"]):
@@ -1144,7 +1144,7 @@ def figure_SeasonalClimo(data):
     leg1.get_frame().set_alpha(1.0)
     ax1.set_xticklabels(directions, fontsize=fsize)
     ax1.set_yticklabels(ylabs, fontsize=fsize)
-    ax1.set_xlabel("Weather system origin (days/month)", fontsize=fsize)
+    ax1.set_xlabel("Frequency (days/month)", fontsize=fsize)
     ax1.grid(True)
     fig_pl.subplots_adjust(left=0.2, bottom=0.13, right=0.95, 
                            top=0.92, wspace=0, hspace=0)
@@ -1156,7 +1156,7 @@ def figure_SeasonalClimo(data):
 def fig_lagged_composite(lags, szn, confs, df, NAO_keys, 
                          ENSO_keys, SC_keys, aodPeak_keys):
     """
-    Produces an 8-pannel figure, of anomalous origin over a given season, with
+    Produces an 8-pannel figure, of anomalous direction over a given season, with
     specified lags on the x-axis, and days/month on the y-axis. Lines of standard
     colour and marking for each forcing, with a confidence interval band from the MC.
     Input:
@@ -1187,7 +1187,7 @@ def fig_lagged_composite(lags, szn, confs, df, NAO_keys,
                        bottom='off',left='off', right='off')
     big_ax.set_frame_on(False)
     big_ax.grid(False)
-    big_ax.set_title(r"Lagged "+ szn +" $\delta$ weather system origin (days/month)", fontsize=11)
+    big_ax.set_title(r"Lagged "+ szn +" weather system direction", fontsize=11)
     big_ax.set_xlabel(r"Lag (years)", fontsize=11)
 
     for ax, direction in zip([ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8],["N","NE","E","SE","S","SW","W","NW"]):
@@ -1219,7 +1219,7 @@ def fig_lagged_composite(lags, szn, confs, df, NAO_keys,
 def fig_individual_lag_comps(lags, szn, confs, df, NAO_keys, 
                          ENSO_keys, SC_keys, aodPeak_keys, get_direction="N"):
     """
-    Produces a 1-pannel figure, of anomalous origin over a given season, with
+    Produces a 1-pannel figure, of anomalous direction over a given season, with
     specified lags on the x-axis, and days/month on the y-axis, for a given 
     origin direction. 
     Lines of standard colour and marking for each forcing, with a confidence 
@@ -1253,7 +1253,7 @@ def fig_individual_lag_comps(lags, szn, confs, df, NAO_keys,
                        bottom='off',left='off', right='off')
     big_ax.set_frame_on(False)
     big_ax.grid(False)
-    big_ax.set_title(r"Lagged "+ szn +" $\delta$ weather system origin (days/month)", fontsize=11)
+    big_ax.set_title(r"Lagged "+ szn +" weather system frequency for "+get_direction, fontsize=11)
     big_ax.set_xlabel(r"Lag (years)", fontsize=11)
 
     for ax, direction in zip([ax1,ax1,ax1,ax1,ax1,ax1,ax1,ax1],["N","NE","E","SE","S","SW","W","NW"]):
@@ -1271,7 +1271,7 @@ def fig_individual_lag_comps(lags, szn, confs, df, NAO_keys,
             ax.fill_between(lags, confs[direction][5], confs[direction][95],color='gray',
                             linewidth=0.5,alpha=0.2)
 
-            ax.set_ylabel(direction)
+            ax.set_ylabel("$\delta$ frequency (days/month)")
 
             ax1.set_xlim(min(lags),max(lags))
 
