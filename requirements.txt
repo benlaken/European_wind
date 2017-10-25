@@ -1,4 +1,4 @@
-# Note: this environment should be created using Python 3.4.
+# Note: this environment should be created using Python 3.4.4
 numpy==1.10.4
 scipy==0.17.1
 pandas==0.17.1 
