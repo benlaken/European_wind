@@ -573,6 +573,10 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase, aod_p
     rstart = min(epoch)
     rfin = max(epoch)+1
     keys=["N","NE","E","SE","S","SW","W","NW"]
+    eb_labels = ["Pos. NAO", "Neg. NAO",
+                 "El Niño", "La Niña",
+                 "S. Max.", "S. Min.",
+                 "AOD"]
     for n in range(8):
         comp_smax = {key : gen_composite(data=df[key],keyDates=solarPhase["max"],
                                         months=range(rstart,rfin)) for key in keys}
@@ -607,7 +611,9 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase, aod_p
         if n < 4:
             for forcing in plotKeyArgs:
                 a, b, c, d = forcing
-                axs[0,n].errorbar(a, ticks, xerr=b, fmt=c,color=d, ms=5.0, linewidth=1.0)
+                axs[0, n].errorbar(a, ticks, xerr=b, fmt=c, color=d,
+                                   ms=5.0, linewidth=1.0,
+                                   label=eb_labels[n])
             axs[0,n].fill_betweenx(ticks, conf_df[2.5], conf_df[97.5],
                                      color='gray',linewidth=0.5,alpha=0.2)
             axs[0,n].fill_betweenx(ticks, conf_df[0.5], conf_df[99.5],
@@ -616,7 +622,9 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase, aod_p
         elif n >= 4 and n < 7:
             for forcing in plotKeyArgs:
                 a, b, c, d = forcing
-                axs[1,n-4].errorbar(a,ticks, xerr=b, fmt=c,color=d, ms=5.0, linewidth=1.0)        
+                axs[1, n-4].errorbar(a, ticks, xerr=b, fmt=c,
+                                     color=d, ms=5.0, linewidth=1.0,
+                                     label=eb_labels[n])
             axs[1,n-4].fill_betweenx(ticks, conf_df[2.5], conf_df[97.5],
                              color='gray',linewidth=0.5,alpha=0.2)
             axs[1,n-4].fill_betweenx(ticks, conf_df[0.5], conf_df[99.5],
@@ -624,9 +632,9 @@ def figure_composite_complex(df, conf_df, naoPhase, ensoPhase, solarPhase, aod_p
             axs[1,n-4].set_title(r"Epoch "+str(epoch[n]), fontsize=fsize)
         if n == 7:
             fig_results.delaxes(axs[1,n-4]) # Erase the last figure block
-    axs[0,0].legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","S. Max.","S. Min.","AOD"],
-               loc=6, prop={'size':12}, numpoints=1,markerscale=1.0,
-               fancybox=True,frameon=True,bbox_to_anchor=(3.8, -0.5))
+
+    axs[0, 0].legend(loc=6, prop={'size': 12}, numpoints=1, markerscale=1.0,
+                     fancybox=True, frameon=True, bbox_to_anchor=(3.8, -0.5))
 
     axs[0, 0].set_yticklabels(cfilled, fontsize=fsize) # place labels on x-axis
     axs[1, 0].set_yticklabels(cfilled, fontsize=fsize) # place labels on y-axis
@@ -663,18 +671,18 @@ def figure_composite_perEpoch(df, conf_df, solarPhase, ensoPhase, epoch=0):
         fig_results.set_size_inches(8,6)
         ax1.set_xlim([-0.1,7.1])
         ax1.errorbar(ticks, elnino_means, yerr=elnino_sem, fmt='o', capsize=5.0, color='r',
-                     ms=5.0, alpha=0.8, linewidth=2)
+                     ms=5.0, alpha=0.8, linewidth=2, label="El Niño")
         ax1.errorbar(ticks, lanina_means, yerr=lanina_sem, fmt='o', capsize=5.0, color='b',
-                     ms=5.0, alpha=0.8, linewidth=2)
-        legb=ax1.legend(["El Niño","La Niña"], loc=0, prop={'size':11}, numpoints=1,
-                        markerscale=1., frameon=True, fancybox=True)
+                     ms=5.0, alpha=0.8, linewidth=2, label="La Niña")
+        legb = ax1.legend(loc=0, prop={'size': 11}, numpoints=1,
+                          markerscale=1., frameon=True, fancybox=True)
 
         ax2.errorbar(ticks, smax_means, yerr=smax_sem, fmt='o', capsize=5.0, color='r',
-                     ms=5.0, alpha=0.8, linewidth=2)
+                     ms=5.0, alpha=0.8, linewidth=2, label="Solar Max.")
         ax2.errorbar(ticks, smin_means, yerr=smin_sem, fmt='o', capsize=5.0, color='b',
-                     ms=5.0, alpha=0.8, linewidth=2)
-        legb=ax2.legend(["Solar Max.","Solar Min."], loc=0, prop={'size':11}, numpoints=1,
-                        markerscale=1., frameon=True, fancybox=True)
+                     ms=5.0, alpha=0.8, linewidth=2, label="Solar Min.")
+        legb = ax2.legend(loc=0, prop={'size': 11}, numpoints=1,
+                          markerscale=1., frameon=True, fancybox=True)
         for ax in [ax1,ax2]:
             ax.fill_between(ticks, conf_df[5.0], conf_df[95.0],color='gray',linewidth=0.5,alpha=0.6)
             ax.fill_between(ticks, conf_df[2.5], conf_df[97.5],color='gray',linewidth=0.5,alpha=0.3)
@@ -762,36 +770,41 @@ def figure_DJFcomposite(df, conf_df, naoPhase, ensoPhase, solarPhase):
         conf_25.append(conf_df[key][2.5])
         conf_975.append(conf_df[key][97.5])
         conf_05.append(conf_df[key][0.5])
-        conf_995.append(conf_df[key][99.5])        
-    
-    ax1.errorbar(posnao_means,ticks, xerr=posnao_sem, fmt='o-',
-                color=sns.color_palette()[1], ms=5.0, linewidth=1.0)
-    ax1.errorbar(negnao_means,ticks, xerr=negnao_sem, fmt='v-',
-                color=sns.color_palette()[5], ms=5.0, linewidth=1.0)
-    ax1.errorbar(elnino_means,ticks, xerr=elnino_sem, fmt='^-',
-                color=sns.color_palette()[4],ms=5.0, linewidth=1.0)
-    ax1.errorbar(lanina_means,ticks, xerr=lanina_sem, fmt='p-',
-            color=sns.color_palette()[3], ms=5.0, linewidth=1.0)
-    ax1.errorbar(smax_means,ticks, xerr=smax_sem, fmt='s-',
-                    color=sns.color_palette()[2], ms=5.0, linewidth=1.0)             
-    ax1.errorbar(smin_means,ticks, xerr=smin_sem, fmt='D-',
-            color=sns.color_palette()[0], ms=5.0, linewidth=1.0)
-    
+        conf_995.append(conf_df[key][99.5])
+
+    ax1.errorbar(posnao_means, ticks, xerr=posnao_sem, fmt='o-',
+                 color=sns.color_palette()[1], ms=5.0, linewidth=1.0,
+                 label="Pos. NAO")
+    ax1.errorbar(negnao_means, ticks, xerr=negnao_sem, fmt='v-',
+                 color=sns.color_palette()[5], ms=5.0, linewidth=1.0,
+                 label="Neg. NAO")
+    ax1.errorbar(elnino_means, ticks, xerr=elnino_sem, fmt='^-',
+                 color=sns.color_palette()[4], ms=5.0, linewidth=1.0,
+                 label="El Niño")
+    ax1.errorbar(lanina_means, ticks, xerr=lanina_sem, fmt='p-',
+                 color=sns.color_palette()[3], ms=5.0, linewidth=1.0,
+                 label="La Niña")
+    ax1.errorbar(smax_means, ticks, xerr=smax_sem, fmt='s-',
+                 color=sns.color_palette()[2], ms=5.0, linewidth=1.0,
+                 label="S. Max.")
+    ax1.errorbar(smin_means, ticks, xerr=smin_sem, fmt='D-',
+                 color=sns.color_palette()[0], ms=5.0, linewidth=1.0,
+                 label="S. Min.")
+
     ax1.fill_betweenx(ticks, conf_25, conf_975,
-                     color='gray',linewidth=0.5,alpha=0.3)
+                      color='gray', linewidth=0.5, alpha=0.3)
     ax1.fill_betweenx(ticks, conf_05, conf_995,
-                     color='gray',linewidth=0.5,alpha=0.3)
+                      color='gray', linewidth=0.5, alpha=0.3)
     ax1.set_title(r"DJF response", fontsize=fsize)
 
-    ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","S. Max.","S. Min."],
-               loc=6, prop={'size':12}, numpoints=1,markerscale=1.0,
-               fancybox=True,frameon=True)
+    ax1.legend(loc=6, prop={'size': 12}, numpoints=1, markerscale=1.0,
+               fancybox=True, frameon=True)
 
-    ax1.set_yticklabels(cfilled, fontsize=fsize) # place labels on x-axis
+    ax1.set_yticklabels(cfilled, fontsize=fsize)  # place labels on x-axis
     ax1.set_ylabel("Direction")
     ax1.set_xlabel(r"$\delta$ frequency (days/month)")
-    ax1.set_xlim(-6,6)
-    ax1.set_ylim(-0.1,7.1)
+    ax1.set_xlim(-6, 6)
+    ax1.set_ylim(-0.1, 7.1)
     fig_results.savefig('Figs/DFJ_composite.pdf', dpi=300)
     fig_results.show()
     return
@@ -911,61 +924,65 @@ def figHorizCompOnePrd(df, conf_df, solarPhase, naoPhase, ensoPhase, aod_peak, e
     fig_results = plt.figure()
     fig_results,(ax1, ax2)=plt.subplots(2,1,sharex=True, sharey=True)
     fig_results.set_size_inches(8,8)
-    
+
     big_ax = fig_results.add_subplot(111)
     big_ax.set_axis_bgcolor('none')
-    big_ax.tick_params(labelcolor='none', top='off', 
+    big_ax.tick_params(labelcolor='none', top='off',
                        bottom='off',left='off', right='off')
     big_ax.set_frame_on(False)
     big_ax.grid(False)
     big_ax.set_ylabel(r"$\delta$ frequency (days/month)", fontsize=11)
     big_ax.set_xlabel(r"Direction", fontsize=11)
-    
-    ax1.set_xlim([-0.1,7.1])
-    
-    ax1.errorbar(ticks, posnao_means, yerr=posnao_sem, fmt='^', capsize=5.0, 
-                 color=sns.color_palette()[1],ms=6.0, alpha=0.8, linewidth=2)
-    ax1.errorbar(ticks, negnao_means, yerr=negnao_sem, fmt='o', capsize=5.0, 
-                 color=sns.color_palette()[1],ms=6.0, alpha=0.8, linewidth=2)
 
-    
-    ax1.errorbar(ticks, elnino_means, yerr=elnino_sem, fmt='^', capsize=5.0, 
-                 color=sns.color_palette()[0], ms=6.0, alpha=0.8, linewidth=2)
-    ax1.errorbar(ticks, lanina_means, yerr=lanina_sem, fmt='o', capsize=5.0, 
-                 color=sns.color_palette()[0], ms=6.0, alpha=0.8, linewidth=2)
-    
+    ax1.set_xlim([-0.1, 7.1])
 
-    ax2.errorbar(ticks, smax_means, yerr=smax_sem, fmt='^', capsize=5.0, 
-                 color=sns.color_palette()[2],ms=6.0, alpha=0.8, linewidth=2)
-    ax2.errorbar(ticks, smin_means, yerr=smin_sem, fmt='o', capsize=5.0, 
-                 color=sns.color_palette()[2],ms=6.0, alpha=0.8, linewidth=2)
-    
-    ax2.errorbar(ticks, aod_means, yerr=aod_sem, fmt='^', capsize=5.0, 
-                 color=sns.color_palette()[3],ms=6.0, alpha=0.8, linewidth=2)
-    
-    legb=ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña"], 
-                    loc=0, prop={'size':11}, numpoints=1,
+    ax1.errorbar(ticks, posnao_means, yerr=posnao_sem, fmt='^', capsize=5.0,
+                 color=sns.color_palette()[1], ms=6.0, alpha=0.8, linewidth=2,
+                 label="Pos. NAO")
+    ax1.errorbar(ticks, negnao_means, yerr=negnao_sem, fmt='o', capsize=5.0,
+                 color=sns.color_palette()[1], ms=6.0, alpha=0.8, linewidth=2,
+                 label="Neg. NAO")
+
+    ax1.errorbar(ticks, elnino_means, yerr=elnino_sem, fmt='^', capsize=5.0,
+                 color=sns.color_palette()[0], ms=6.0, alpha=0.8, linewidth=2,
+                 label="El Niño")
+    ax1.errorbar(ticks, lanina_means, yerr=lanina_sem, fmt='o', capsize=5.0,
+                 color=sns.color_palette()[0], ms=6.0, alpha=0.8, linewidth=2,
+                 label="La Niña")
+
+    legb = ax1.legend(loc=0, prop={'size': 11}, numpoints=1,
+                      markerscale=1., frameon=True, fancybox=True)
+
+    ax2.errorbar(ticks, smax_means, yerr=smax_sem, fmt='^', capsize=5.0,
+                 color=sns.color_palette()[2], ms=6.0, alpha=0.8, linewidth=2,
+                 label="Solar Max.")
+    ax2.errorbar(ticks, smin_means, yerr=smin_sem, fmt='o', capsize=5.0,
+                 color=sns.color_palette()[2], ms=6.0, alpha=0.8, linewidth=2,
+                 label="Solar Min.")
+
+    ax2.errorbar(ticks, aod_means, yerr=aod_sem, fmt='^', capsize=5.0,
+                 color=sns.color_palette()[3], ms=6.0, alpha=0.8, linewidth=2,
+                 label="AOD peak")
+
+    legb=ax2.legend(loc=0, prop={'size':11}, numpoints=1,
                     markerscale=1., frameon=True, fancybox=True)
-    
-    legb=ax2.legend(["Solar Max.","Solar Min.","AOD peak"], 
-                    loc=0, prop={'size':11}, numpoints=1,
-                    markerscale=1., frameon=True, fancybox=True)
 
-    for ax in [ax1,ax2]:
+
+    for ax in [ax1, ax2]:
         ax.fill_between(ticks, conf_df[5.0], conf_df[95.0],color='gray',linewidth=0.5,alpha=0.2)
         ax.fill_between(ticks, conf_df[2.5], conf_df[97.5],color='gray',linewidth=0.5,alpha=0.2)
         ax.fill_between(ticks, conf_df[0.5], conf_df[99.5],color='gray',linewidth=0.5,alpha=0.2)
-    
+
     if giveYrange:
         lower, upper = giveYrange
         ax2.set_ylim(lower,upper)
-        
+
     ax1.set_xticklabels(cfilled, fontsize=11) # place labels on x-axis
     if not szn:
         ax1.set_title(r"Peak forcing composites (lag {0}, strongest months)".format(str(epoch)), fontsize=11)
         fig_results.savefig('Figs/epoch'+str(epoch)+'_horiz_comp.pdf', dpi=300, bbox_inches='tight')
     else:
-        ax1.set_title(r"{0} peak forcing composites (lag {1})".format(szn, str(epoch)), fontsize=11)        
+        ax1.set_title(r"{0} peak forcing composites (lag {1})".format(szn, str(epoch)), fontsize=11)
         fig_results.savefig('Figs/'+szn+'_horiz_comp.pdf', dpi=300, bbox_inches='tight')
     fig_results.show()
     return
@@ -1064,11 +1081,11 @@ def figure_djf_ts(df):
     big_ax.set_title("Winter weather system direction", fontsize=fsize)
     big_ax.grid(False)
     #props = ['b.','g.','r.','m.'] # <- some plot color and marker
-    for n, wind in enumerate(["N","E","S","W"]):
-        axobs[n].plot(df.index, df[wind],".",
-                      color=sns.color_palette()[n],ms=3.0)
-        leg1=axobs[n].legend([wind], loc=2,prop={'size':fsize},
-                                   numpoints=1,markerscale=2.0)
+    for n, wind in enumerate(["N", "E", "S", "W"]):
+        axobs[n].plot(df.index, df[wind], ".",
+                      color=sns.color_palette()[n], ms=3.0, label=wind)
+        leg1 = axobs[n].legend(loc=2, prop={'size': fsize},
+                               numpoints=1, markerscale=2.0)
         leg1.get_frame().set_alpha(0.9)
     fig_TS.savefig('Figs/DJF_freq.pdf', dpi=300)
     fig_TS.show()
@@ -1097,9 +1114,10 @@ def figure_MonthlyTS(df):
     #props = ['b.','g.','r.','m.'] # <- some plot color and marker
     for n, wind in enumerate(["N","E","S","W"]):
         axobs[n].plot(df.index, df[wind],".",
-                      color=sns.color_palette()[n],ms=3.0)
-        leg1=axobs[n].legend([wind], loc=2, prop={'size':fsize},
-                   fancybox=True, frameon=True, numpoints=1, markerscale=2.0)
+                      color=sns.color_palette()[n], ms=3.0, label=wind)
+        leg1 = axobs[n].legend(loc=2, prop={'size': fsize},
+                               fancybox=True, frameon=True,
+                               numpoints=1, markerscale=2.0)
         #leg1.get_frame().set_alpha(0.9)
 
     fig_TS.savefig('Figs/Monthly_freq.pdf', dpi=300, bbox_inches='tight')
@@ -1132,28 +1150,28 @@ def figure_SeasonalClimo(data):
     seasons = ["DJF","MAM","JJA","SON"]
     directions = ['E','NE','N','NW','W','SW','S','SE','']    # Blank at end, as will be plot label
     rad_ticks = [n*(np.pi/180.) for n in ticks]
-    for n, season in enumerate(seasons):
+    for n, (season, label) in enumerate(zip(seasons, ["DJF","MAM","JJA","SON"])):
         sz_means = [szn_dat[season][direction][0] for direction in directions[0:-1]]
         sz_means.append(sz_means[0])                        # Close loop for the polar plot
+        # Add info to plot in a loop
+        ax1.plot(rad_ticks, sz_means, "-", color=sns.color_palette()[n],
+                 linewidth=1.5, alpha=0.9, label=label)
 
-        ax1.plot(rad_ticks,sz_means,"-",color=sns.color_palette()[n],
-                 linewidth=1.5,alpha=0.9)                   # Add info to plot in a loop
-
-    leg1=ax1.legend(["DJF","MAM","JJA","SON"], loc=2,prop={'size':fsize},
+    leg1=ax1.legend(loc=2, prop={'size': fsize},
                     numpoints=1,markerscale=5.,frameon=True,fancybox=True)
     leg1.get_frame().set_alpha(1.0)
     ax1.set_xticklabels(directions, fontsize=fsize)
     ax1.set_yticklabels(ylabs, fontsize=fsize)
     ax1.set_xlabel("Frequency (days/month)", fontsize=fsize)
     ax1.grid(True)
-    fig_pl.subplots_adjust(left=0.2, bottom=0.13, right=0.95, 
+    fig_pl.subplots_adjust(left=0.2, bottom=0.13, right=0.95,
                            top=0.92, wspace=0, hspace=0)
     plt.savefig('Figs/Seasonal_climo.pdf', dpi=300, bbox_inches='tight')
     fig_pl.show()
     return
 
 
-def fig_lagged_composite(lags, szn, confs, df, NAO_keys, 
+def fig_lagged_composite(lags, szn, confs, df, NAO_keys,
                          ENSO_keys, SC_keys, aodPeak_keys):
     """
     Produces an 8-pannel figure, of anomalous direction over a given season, with
@@ -1189,14 +1207,18 @@ def fig_lagged_composite(lags, szn, confs, df, NAO_keys,
     big_ax.grid(False)
     big_ax.set_title(r"Lagged "+ szn +" weather system direction", fontsize=11)
     big_ax.set_xlabel(r"Lag (years)", fontsize=11)
-
+    forcing_names = ["Pos. NAO", "Neg. NAO",
+                     "El Niño", "La Niña",
+                     "Solar Max.", "Solar Min.",
+                     "AOD peak"]
     for ax, direction in zip([ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8],["N","NE","E","SE","S","SW","W","NW"]):
 
-        for n, forcing in enumerate(forcings):
-            lagged_means, lagged_err = get_lagged_seasonal_composite(direction=direction, df = df, 
-                                        lags = lags, composite_years = forcing)
-            ax.errorbar(lags, lagged_means, yerr=lagged_err, fmt=fmts[n], capsize=5.0, 
-                             color=colors[n],ms=5.0, alpha=0.8, linewidth=1)
+        for n, (forcing, label) in enumerate(zip(forcings, forcing_names)):
+            lagged_means, lagged_err = get_lagged_seasonal_composite(direction=direction, df=df,
+                                                                     lags=lags, composite_years=forcing)
+            ax.errorbar(lags, lagged_means, yerr=lagged_err, fmt=fmts[n],
+                        capsize=5.0, color=colors[n],ms=5.0, alpha=0.8, linewidth=1,
+                        label=label)
 
         ax.fill_between(lags, confs[direction][0.5], confs[direction][99.5],color='gray',
                         linewidth=0.5,alpha=0.2)
@@ -1209,8 +1231,7 @@ def fig_lagged_composite(lags, szn, confs, df, NAO_keys,
 
         ax1.set_xlim(min(lags),max(lags))
 
-        legb=ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","Solar Max.",
-                         "Solar Min.","AOD peak"],loc=0, prop={'size':11}, numpoints=1,
+        legb=ax1.legend(loc=0, prop={'size': 11}, numpoints=1,
                         markerscale=1., frameon=True, fancybox=True)
     fig_lag.savefig('Figs/Lags_'+szn+'perDir.pdf', dpi=300, bbox_inches='tight')
     fig_lag.show()
@@ -1255,14 +1276,17 @@ def fig_individual_lag_comps(lags, szn, confs, df, NAO_keys,
     big_ax.grid(False)
     big_ax.set_title(r"Lagged "+ szn +" weather system frequency for "+get_direction, fontsize=11)
     big_ax.set_xlabel(r"Lag (years)", fontsize=11)
-
+    forcing_names = ["Pos. NAO", "Neg. NAO",
+                     "El Niño", "La Niña",
+                     "Solar Max.", "Solar Min.",
+                     "AOD peak"]
     for ax, direction in zip([ax1,ax1,ax1,ax1,ax1,ax1,ax1,ax1],["N","NE","E","SE","S","SW","W","NW"]):
         if direction == get_direction:
-            for n, forcing in enumerate(forcings):
-                lagged_means, lagged_err = get_lagged_seasonal_composite(direction=direction, df = df, 
+            for n, (forcing, label) in enumerate(zip(forcings, forcing_names)):
+                lagged_means, lagged_err = get_lagged_seasonal_composite(direction=direction, df = df,
                                             lags = lags, composite_years = forcing)
-                ax.errorbar(lags, lagged_means, yerr=lagged_err, fmt=fmts[n], capsize=5.0, 
-                                 color=colors[n],ms=5.0, alpha=0.8, linewidth=1)
+                ax.errorbar(lags, lagged_means, yerr=lagged_err, fmt=fmts[n], capsize=5.0,
+                                 color=colors[n],ms=5.0, alpha=0.8, linewidth=1, label=label)
 
             ax.fill_between(lags, confs[direction][0.5], confs[direction][99.5],color='gray',
                             linewidth=0.5,alpha=0.2)
@@ -1275,8 +1299,7 @@ def fig_individual_lag_comps(lags, szn, confs, df, NAO_keys,
 
             ax1.set_xlim(min(lags),max(lags))
 
-            legb=ax1.legend(["Pos. NAO","Neg. NAO","El Niño","La Niña","Solar Max.",
-                             "Solar Min.","AOD peak"],loc=1, prop={'size':11}, numpoints=1,
+            legb=ax1.legend(loc=1, prop={'size':11}, numpoints=1,
                             markerscale=1., frameon=True, fancybox=True)
     fig_lag.savefig('Figs/Lags_individual_'+szn+'perDir.pdf', dpi=300, bbox_inches='tight')
     fig_lag.show()
