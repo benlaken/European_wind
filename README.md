@@ -51,3 +51,5 @@ make help
 ```
 
 for further details on the Makefile.  The main [Notebook](HBGWL_analysis.ipynb) has additional notes on reproducibility issues that arise with particular parts of the code.
+
+A `requirements.txt` file is also provided if you prefer to use pip/virtualenv. If you follow this route, you should use it with a Python 3.4 environment, to match how the original paper was created (conda environment files can specify the Python version itself, so there's no need for this manual caveat if you follow the conda route).
