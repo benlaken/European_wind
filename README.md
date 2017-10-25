@@ -25,3 +25,29 @@ Stratospheric aerosol data from [NASA](http://data.giss.nasa.gov/modelforce/stra
 MEI (ENSO) data from [NOAA](http://www.esrl.noaa.gov/psd/enso/mei.ext/), credit Dr Klaus Wolter.
 
 NAO data from [CRU](http://www.cru.uea.ac.uk/timo/datapages/naoi.htm/).
+
+
+### Reproducibility Notes ###
+
+A `Makefile` is provided to create a [Conda environment](https://conda.io/docs/user-guide/tasks/manage-environments.html) with all the library versions used to execute this code. 
+
+You should first create the environment with 
+
+```
+make env
+```
+
+and then you can run the code with
+
+```
+source activate ewind
+make
+```
+
+You can type
+
+```
+make help
+```
+
+for further details on the Makefile.  The main [Notebook](HBGWL_analysis.ipynb) has additional notes on reproducibility issues that arise with particular parts of the code.
